@@ -8,20 +8,15 @@ With this program, you can control your CPU with just a click of mouse, and auto
 
 Functions to be developed:
 
-- [ ] Enable/disable turbo boost
-
-- [ ] Turn on/off CPU cores
-
+- [x] Enable/disable turbo boost
+- [x] Turn on/off CPU cores
 - [ ] Undervolting
-
 - [ ] TDP level configuration
-
 - [ ] Auto switch profile, handle ACPI events
-
-- [ ] Easy TLP/PowerTOP toggle
-
+- [x] Easy TLP/PowerTOP toggle
 - [ ] Easy rfkill
-
 - [ ] Power consumption monitor
+- [ ] Installation
 
-  
+The undervolting module is from [georgewhewell](https://github.com/georgewhewell/undervolt) and is cloned from github during installation. 
+
