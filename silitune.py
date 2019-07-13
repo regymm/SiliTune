@@ -4,6 +4,8 @@ import sys
 import os
 import subprocess
 import logging
+import time
+import threading
 from configparser import ConfigParser
 
 from PyQt5.QtWidgets import *
@@ -19,10 +21,14 @@ cmd_turbo_get = 'cat /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_no = 'echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_yes = 'echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 
+cmd_battery_check = 'cat /sys/class/power_supply/BAT0/status'
+
 silitune_debug = 1
 
 # cpu_number = int(subprocess.getstatusoutput('grep -c ^processor /proc/cpuinfo')[1])
 cpu_number = 8
+
+update_interval = 1
 
 checkbox_array = []
 radiobtn_profile = []
@@ -30,6 +36,7 @@ radiobtn_profile = []
 profile_name = ['Power', 'Battery']
 profile = -1
 
+on_exit = 0
 
 # def openlogger(obj):
 #     print(obj)
@@ -55,8 +62,8 @@ msg_error = 'None-zero returned, command may have failed'
 
 
 def runcmd(obj, cmd, msg=msg_error):
-    if silitune_debug:
-        print("Running command: \n" + cmd)
+    # if silitune_debug:
+    #     logging.debug("Running command: \n" + cmd)
     sts, out = subprocess.getstatusoutput(cmd)
     # logging.info(out)
     if sts != 0:
@@ -73,6 +80,23 @@ def runcheck(obj, cmd, msg=msg_error):
         return True
     else:
         return False
+
+
+def on_power():
+    sts, out = subprocess.getstatusoutput(cmd_battery_check)
+    if out == 'Charging' or out == "Full":
+        return True
+    else:
+        return False
+
+
+def thrautoswitch():
+    while not on_exit:
+        if on_power():
+            logging.debug("On AC")
+        else:
+            logging.debug("On battery")
+        time.sleep(update_interval)
 
 
 def save_config(section):
@@ -100,7 +124,7 @@ def read_values():
 def profileswitch_btn(self):
     for i in range(len(radiobtn_profile)):
         if radiobtn_profile[i].isChecked():
-            print("Switch to profile %s" % profile_name[i])
+            logging.debug("Switch to profile %s" % profile_name[i])
             profileswitch(i)
     # if self.bgprofile.checkedID() == 10:
     #     print("Switch to Power profile")
@@ -164,12 +188,9 @@ class MyQCheckBox(QWidget):
         # self.checkbox.setMinimumSize(320, 320)
 
     def exec_change(self):
-        print("Exec_changed")
         if self.checkbox.isChecked():
-            print('on')
             runcmd(self, self.cmdon)
         else:
-            print('off')
             runcmd(self, self.cmdoff)
 
     def real(self):
@@ -216,9 +237,6 @@ class App(QWidget):
         rbbatt.clicked.connect(profileswitch_btn)
         radiobtn_profile.append(rbpower)
         radiobtn_profile.append(rbbatt)
-        # bgprofile.addButton(rbpower, 10)
-        # bgprofile.addButton(rbbatt, 11)
-        # bgprofile.toggled.connect(self.profileswitch1)
         # rbpower.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         # rbbatt.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         hb1 = QHBoxLayout()
@@ -309,26 +327,34 @@ class MyLogger(QDialog, QPlainTextEdit):
         # You can control the logging level
         logging.getLogger().setLevel(logging.DEBUG)
 
-        self._button = QPushButton(self)
-        self._button.setText('Test Me')
+        # self._button = QPushButton(self)
+        # self._button.setText('Clear')
 
         layout = QVBoxLayout()
         # Add the new logging box widget to the layout
         layout.addWidget(logTextBox.widget)
-        layout.addWidget(self._button)
+        # layout.addWidget(self._button)
         self.setLayout(layout)
 
-        # Connect signal to slot
-        self._button.clicked.connect(self.test)
+        # # Connect signal to slot
+        # self._button.clicked.connect(self.clearlog)
 
-    def test(self):
-        logging.debug('damn, a bug')
-        logging.info('something to remember')
-        logging.warning('that\'s not right')
-        logging.error('foobar')
+    # def clearlog(self):
+    #     self.logTextBox.set
+
+    # def test(self):
+    #     logging.debug('damn, a bug')
+    #     logging.info('something to remember')
+    #     logging.warning('that\'s not right')
+    #     logging.error('foobar')
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    thr1 = threading.Thread(target=thrautoswitch, name="AutoSwitchThread")
+    thr1.start()
     ex = App()
-    sys.exit(app.exec_())
+    app.exec_()
+    on_exit = 1
+    thr1.join()
+    sys.exit(0)
