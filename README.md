@@ -10,13 +10,14 @@ Functions to be developed:
 
 - [x] Enable/disable turbo boost
 - [x] Turn on/off CPU cores
-- [ ] Undervolting
-- [ ] TDP level configuration
-- [ ] Auto switch profile, handle ACPI events
-- [x] Easy TLP/PowerTOP toggle
-- [ ] Easy rfkill
-- [ ] Power consumption monitor
-- [ ] Installation
+- [ ] Undervolting (by `intel-undervolt`)
+- [ ] TDP level configuration (by `intel-undervolt`)
+- [x] Auto switch profile, ~~handle ACPI events~~, continuous check (per certain seconds) for whether laptop is on AC or battery
+- [x] Easy TLP/~~PowerTOP(May cause USB mouse stop responding)~~ toggle
+- [ ] Power consumption monitor, temperature/frequency monitor
+- [ ] Easy installation
+- [x] App launcher, auto start(depends on desktop environment)
+- [x] system tray icon for toggle
 
-The undervolting module is from [georgewhewell](https://github.com/georgewhewell/undervolt) and is cloned from github during installation. 
+This project use `intel-undervolt` for undervolting and other CPU tweaks(like temperature and TDP level), `intel-undervolt` is available in AUR.
 

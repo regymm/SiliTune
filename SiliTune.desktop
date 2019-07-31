@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SiliTune
+#Exec=/home/petergu/MyHome/Working/SiliTune/start.sh
+Exec=sudo nohup python /home/petergu/MyHome/Working/SiliTune/silitune.py &
+Path=/home/petergu/MyHome/Working/SiliTune/
+Terminal=false
