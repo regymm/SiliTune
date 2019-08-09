@@ -17,21 +17,22 @@ msg_error = 'None-zero returned, command may have failed'
 
 
 def runcmd(obj, cmd, msg=msg_error):
-    # if silitune_debug:
-    #     logging.debug("Running command: \n" + cmd)
     sts, out = subprocess.getstatusoutput(cmd)
-    # logging.info(out)
     if sts != 0:
+        # logging.info(out)
         logging.error('Error:' + msg + '\nCommand:' + cmd + '\nMessage:' + out)
     return sts
 
 
-def runcheck(obj, cmd, msg=msg_error):
+def runresult(obj, cmd, msg=msg_error):
     sts, out = subprocess.getstatusoutput(cmd)
     if sts != 0:
-        # logging.info(out)
-        logging.error('Error: ' + msg + '\nCommand:' + cmd + '\nMessage:' + out)
-    if out == '1':
+        logging.error('Error:' + msg + '\nCommand:' + cmd + '\nMessage:' + out)
+    return out
+
+
+def runcheckTF(obj, cmd, msg=msg_error):
+    if runresult(obj, cmd, msg) == '1':
         return True
     else:
         return False
@@ -72,10 +73,10 @@ class MyQLabelRed(MyQLabel):
 
 
 class MyQIntLE(QLineEdit):
-    def __init__(self):
+    def __init__(self, cmdget, cmdset):
         super().__init__()
         self.setValidator(QIntValidator())
-        self.setMaxLength(3)
+        self.setMaxLength(5)
         # self.setAlignment(Qt.AlignRight)
         # self.setFixedWidth(50)
         # self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -85,6 +86,17 @@ class MyQIntLE(QLineEdit):
         c = self.contentsMargins()
         w = 4*fm.width('x')+m.left()+m.right()+c.left()+c.right()
         self.setFixedWidth(2 * w)
+        self.cmdget = cmdget
+        self.cmdset = cmdset
+
+    def apply(self):
+        runcmd(self, self.cmdset)
+
+    def real(self):
+        return runresult(self, self.cmdget)
+
+    def reinit(self):
+        self.setText(self.real())
 
 
 class MyQCheckBox(QWidget):
@@ -111,7 +123,7 @@ class MyQCheckBox(QWidget):
             runcmd(self, self.cmdoff)
 
     def real(self):
-        return runcheck(self, self.cmdget)
+        return runcheckTF(self, self.cmdget)
 
     def reinit(self):
         self.checkbox.setChecked(self.real())

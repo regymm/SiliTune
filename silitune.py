@@ -16,16 +16,21 @@ cmd_turbo_yes = 'echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 
 cmd_battery_check = 'cat /sys/class/power_supply/BAT0/status'
 
-silitune_debug = 1
+silitune_debug = True
 
 cpu_number = int(subprocess.getstatusoutput('ls /sys/devices/system/cpu | grep \'^cpu.$\' | wc -l')[1])
 
-update_interval = 1
-update_interval_mon = 1
+update_interval = 2
+update_interval_mon = 2
 
 
 checkbox_array = []
 radiobtn_profile = []
+underv_array = []
+underv_label_array = []
+underv_name = ['CPU', 'GPU', 'CPU Cache', 'System Agent', 'Analog I/O',
+               'Power Short', 'Time Short', 'Power Long', 'Time Long']
+undervolt_max = 150
 
 profile_name = ['Power', 'Battery']
 profile = -1
@@ -40,6 +45,21 @@ def cmd_cpu(switch, number):
 
 def cmd_cpu_check(number):
     return 'cat /sys/devices/system/cpu/cpu%d/online' % number
+
+
+def cmd_uv(option, setget):
+    if setget == 'set':
+        return 'ls'
+    elif setget == 'get':
+        if option < 5:
+            return 'cat ' + iu_config_file + ' | grep \"^undervolt.*\"\\\'\"' + underv_name[option] + '\"\\\'' + \
+                   ' | sed -e \"s/\'.*\'//g\" | awk \'{print $3}\''
+        else:
+            awkid = option - 2
+            return 'cat ' + iu_config_file + ' | grep \"^power package \" | sed -e \'s/\\// /g\'' + \
+                   ' | awk \'{print $%d}\'' % awkid
+    else:
+        return None
 
 
 def dummy():
@@ -89,6 +109,8 @@ def save_config(section):
         config[section]['NoTurbo'] = checkbox_enable_array[0]
         for i in range(cpu_number - 1):
             config[section]['Core%d' % (i + 1)] = checkbox_enable_array[i + 1]
+        for i in range(len(underv_array)):
+            config[section][underv_name[i]] = underv_array[i].text()
         with open(config_file, 'w', encoding='UTF-8') as fo:
             config.write(fo)
     except PermissionError:
@@ -101,6 +123,8 @@ def button_save():
 
 def read_values():
     for i in checkbox_array:
+        i.reinit()
+    for i in underv_array:
         i.reinit()
 
 
@@ -129,10 +153,19 @@ def profileswitch(pid):
     for i in range(cpu_number - 1):
         checkbox_array[i + 1].checkbox.setChecked(config[section]['Core%d' % (i + 1)] == '1')
         checkbox_array[i + 1].exec_change()
+    for i in range(len(underv_array)):
+        try:
+            underv_array[i].setText(config[section][underv_name[i]])
+        except KeyError:
+            logging.warning('Undervolting config not found, use 0')
+            underv_array[i].setText('0')
+    apply_undervolt()
 
 
 def apply_undervolt():
     logging.info("Apply undervolt config...")
+    for i in underv_array:
+        i.apply()
 
 
 class App(QWidget):
@@ -156,6 +189,8 @@ class App(QWidget):
         # title
         ltitle = MyQLabel("SiliTune v1.0")
         vbox.addWidget(ltitle)
+        # check if dependencies like intel-undervolt is ready
+        self.check_dep()
         # tlp functions
         btlpbat = MyQCmdButton("tlp bat", "tlp bat")
         btlpac = MyQCmdButton("tlp ac", "tlp ac")
@@ -207,54 +242,33 @@ class App(QWidget):
         hb_core.setAlignment(Qt.AlignLeft)
         vbox.addLayout(hb_core)
         # Power Consumption Monitoring, CPU status monitoring
-        # Undervolting
-        lcpu = MyQLabelRed('CPU')
-        lgpu = MyQLabelRed('GPU')
-        lcache = MyQLabelRed('CPU Cache')
-        lsa = MyQLabelRed('System Agent')
-        laio = MyQLabelRed('Analog I/O')
-        ecpu = MyQIntLE()
-        egpu = MyQIntLE()
-        ecache = MyQIntLE()
-        esa = MyQIntLE()
-        eaio = MyQIntLE()
+        # Undervolting (including TDP control)
+        for i in range(len(underv_name)):
+            lab = MyQLabelRed(underv_name[i])
+            underv_label_array.append(lab)
+            lineedit = MyQIntLE(cmd_uv(i, 'get'), cmd_uv(i, 'set'))
+            underv_array.append(lineedit)
         hbuv1 = QHBoxLayout()
-        hbuv1.addWidget(lcpu)
-        hbuv1.addWidget(ecpu)
-        hbuv1.addWidget(lgpu)
-        hbuv1.addWidget(egpu)
-        hbuv1.addWidget(lcache)
-        hbuv1.addWidget(ecache)
-        hbuv1.setAlignment(Qt.AlignLeft)
+        for i in [0, 1, 2]:
+            hbuv1.addWidget(underv_label_array[i])
+            hbuv1.addWidget(underv_array[i])
         hbuv2 = QHBoxLayout()
-        hbuv2.addWidget(lsa)
-        hbuv2.addWidget(esa)
-        hbuv2.addWidget(laio)
-        hbuv2.addWidget(eaio)
+        for i in [3, 4]:
+            hbuv2.addWidget(underv_label_array[i])
+            hbuv2.addWidget(underv_array[i])
         hbuv2.setAlignment(Qt.AlignLeft)
+        hbuv3 = QHBoxLayout()
+        for i in [5, 6]:
+            hbuv3.addWidget(underv_label_array[i])
+            hbuv3.addWidget(underv_array[i])
+        hbuv3.setAlignment(Qt.AlignLeft)
+        hbuv4 = QHBoxLayout()
+        for i in [7, 8]:
+            hbuv4.addWidget(underv_label_array[i])
+            hbuv4.addWidget(underv_array[i])
+        hbuv4.setAlignment(Qt.AlignLeft)
         vbox.addLayout(hbuv1)
         vbox.addLayout(hbuv2)
-        # TDP Control
-        lpowershort = MyQLabelRed('Power Short')
-        lpowershorttime = MyQLabelRed('Time Short')
-        lpowerlong = MyQLabelRed('Power Long')
-        lpowerlongtime = MyQLabelRed('Time Long')
-        epowershort = MyQIntLE()
-        epowershorttime = MyQIntLE()
-        epowerlong = MyQIntLE()
-        epowerlongtime = MyQIntLE()
-        hbuv3 = QHBoxLayout()
-        hbuv4 = QHBoxLayout()
-        hbuv3.addWidget(lpowershort)
-        hbuv3.addWidget(epowershort)
-        hbuv3.addWidget(lpowershorttime)
-        hbuv3.addWidget(epowershorttime)
-        hbuv3.setAlignment(Qt.AlignLeft)
-        hbuv4.addWidget(lpowerlong)
-        hbuv4.addWidget(epowerlong)
-        hbuv4.addWidget(lpowerlongtime)
-        hbuv4.addWidget(epowerlongtime)
-        hbuv4.setAlignment(Qt.AlignLeft)
         vbox.addLayout(hbuv3)
         vbox.addLayout(hbuv4)
         # Undervolting apply button
@@ -288,6 +302,12 @@ class App(QWidget):
 
     def openlogger(self):
         self.logr.show()
+
+    def check_dep(self):
+        if runcmd(self, 'ls ' + iu_config_file) != 0:
+            QMessageBox.warning(self, '',
+                                'intel-undervolt configure file not found, undervolt functions will not work',
+                                QMessageBox.Yes)
 
 
 if __name__ == '__main__':
