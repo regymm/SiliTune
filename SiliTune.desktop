@@ -2,6 +2,8 @@
 Type=Application
 Name=SiliTune
 #Exec=/home/petergu/MyHome/Working/SiliTune/start.sh
-Exec=sudo nohup python /home/petergu/MyHome/Working/SiliTune/silitune.py &
+#Exec=sudo nohup python /home/petergu/MyHome/Working/SiliTune/silitune.py &
+#Exec=python /home/petergu/MyHome/Working/SiliTune/silitune.py
+#Exec=pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY /home/petergu/MyHome/Working/SiliTune/silitune.py >/tmp/a 2>&1
+Exec=pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY nethack
 Path=/home/petergu/MyHome/Working/SiliTune/
-Terminal=false

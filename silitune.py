@@ -9,6 +9,7 @@ from sililib import *
 
 config_file = '/etc/silitune/sili.conf'
 iu_config_file = '/etc/intel-undervolt.conf'
+iu_config_file_dry = './intel-undervolt.conf'
 
 cmd_turbo_get = 'cat /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_no = 'echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo'
@@ -31,12 +32,15 @@ underv_label_array = []
 underv_name = ['CPU', 'GPU', 'CPU Cache', 'System Agent', 'Analog I/O',
                'Power Short', 'Time Short', 'Power Long', 'Time Long']
 undervolt_max = 150
+undervolt_enabled = 0
 
 profile_name = ['Power', 'Battery']
 profile = -1
 
 on_exit = 0
 on_started = 0
+
+main_section_name = 'Global'
 
 
 def cmd_cpu(switch, number):
@@ -47,12 +51,30 @@ def cmd_cpu_check(number):
     return 'cat /sys/devices/system/cpu/cpu%d/online' % number
 
 
+def cmd_uv_set_uv_get(option):
+    def cmd_uv_set_uv_inner(value):
+        val = float(value)
+        if val > 0:
+            logging.warning('Undervolting value should be negative')
+        elif math.fabs(val) > math.fabs(undervolt_max):
+            logging.warning('Undervolting value out of range')
+        else:
+            return 'sed -ie \"s/\\(^undervolt.*\'' + underv_name[option].replace('/', '\\/') + \
+                   '\'\\) *[.0-9\\-]*$/\\1 ' + value + '/g" ' + iu_config_file_dry
+        return 'false'
+    return cmd_uv_set_uv_inner
+
+
 def cmd_uv(option, setget):
     if setget == 'set':
-        return 'ls'
+        if option < 5:
+            return cmd_uv_set_uv_get(option)
+        else:
+            return lambda param: 'false'
     elif setget == 'get':
         if option < 5:
-            return 'cat ' + iu_config_file + ' | grep \"^undervolt.*\"\\\'\"' + underv_name[option] + '\"\\\'' + \
+            return 'cat ' + iu_config_file + ' | grep \"^undervolt.*\"\\\'\"' + \
+                   underv_name[option].replace('/', '\\/') + '\"\\\'' + \
                    ' | sed -e \"s/\'.*\'//g\" | awk \'{print $3}\''
         else:
             awkid = option - 2
@@ -99,22 +121,34 @@ def thrmonitor():
         time.sleep(update_interval_mon)
 
 
+def init_config():
+    # write the config if
+    config = ConfigParser()
+    config.read(config_file, encoding='UTF-8')
+    if not config.has_section(main_section_name):
+        config.add_section(main_section_name)
+    global undervolt_enabled
+    if config.has_option(main_section_name, 'UV Enabled'):
+        undervolt_enabled = config[main_section_name]['UV Enabled'] == '1'
+    else:
+        config[main_section_name]['UV Enabled'] = str(undervolt_enabled)
+    with open(config_file, 'w', encoding='UTF-8') as fo:
+        config.write(fo)
+
+
 def save_config(section):
-    try:
-        config = ConfigParser()
-        config.read(config_file, encoding='UTF-8')
-        if not config.has_section(section):
-            config.add_section(section)
-        checkbox_enable_array = ['1' if i.checkbox.isChecked() else '0' for i in checkbox_array]
-        config[section]['NoTurbo'] = checkbox_enable_array[0]
-        for i in range(cpu_number - 1):
-            config[section]['Core%d' % (i + 1)] = checkbox_enable_array[i + 1]
-        for i in range(len(underv_array)):
-            config[section][underv_name[i]] = underv_array[i].text()
-        with open(config_file, 'w', encoding='UTF-8') as fo:
-            config.write(fo)
-    except PermissionError:
-        logging.error('No permission to write configure file %s!' % config_file)
+    config = ConfigParser()
+    config.read(config_file, encoding='UTF-8')
+    if not config.has_section(section):
+        config.add_section(section)
+    checkbox_enable_array = ['1' if i.checkbox.isChecked() else '0' for i in checkbox_array]
+    config[section]['NoTurbo'] = checkbox_enable_array[0]
+    for i in range(cpu_number - 1):
+        config[section]['Core%d' % (i + 1)] = checkbox_enable_array[i + 1]
+    for i in range(len(underv_array)):
+        config[section][underv_name[i]] = underv_array[i].text()
+    with open(config_file, 'w', encoding='UTF-8') as fo:
+        config.write(fo)
 
 
 def button_save():
@@ -141,7 +175,6 @@ def profileswitch_pgm(pid):
     profileswitch(pid)
 
 
-# TODO: bug here, multi thread call this before initialize cause list index out of range
 def profileswitch(pid):
     global profile
     profile = pid
@@ -163,9 +196,12 @@ def profileswitch(pid):
 
 
 def apply_undervolt():
-    logging.info("Apply undervolt config...")
-    for i in underv_array:
-        i.apply()
+    if undervolt_enabled:
+        logging.info("Apply undervolt config...")
+        for i in underv_array:
+            i.apply()
+    else:
+        logging.info("Undervolting not enabled.")
 
 
 class App(QWidget):
@@ -242,12 +278,17 @@ class App(QWidget):
         hb_core.setAlignment(Qt.AlignLeft)
         vbox.addLayout(hb_core)
         # Power Consumption Monitoring, CPU status monitoring
+        # # undervolting enable button
+        # cb_uv = QCheckBox("Enable Undervolting", self)
+        # cb_uv.clicked.connect(self.uv_enable)
         # Undervolting (including TDP control)
         for i in range(len(underv_name)):
             lab = MyQLabelRed(underv_name[i])
             underv_label_array.append(lab)
             lineedit = MyQIntLE(cmd_uv(i, 'get'), cmd_uv(i, 'set'))
             underv_array.append(lineedit)
+            if not undervolt_enabled:
+                lineedit.setEnabled(False)
         hbuv1 = QHBoxLayout()
         for i in [0, 1, 2]:
             hbuv1.addWidget(underv_label_array[i])
@@ -276,6 +317,8 @@ class App(QWidget):
         buv.setStyleSheet('QPushButton {color:red;}')
         buv.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         buv.clicked.connect(apply_undervolt)
+        if not undervolt_enabled:
+            buv.setEnabled(False)
         vbox.addWidget(buv)
         # Button of Save to config file
         bsave = QPushButton("Save config", self)
@@ -311,13 +354,15 @@ class App(QWidget):
 
 
 if __name__ == '__main__':
+    if os.getuid() != 0:
+        print("Are you r00t?")
+        exit(-1)
     app = QApplication(sys.argv)
     thr1 = threading.Thread(target=thrautoswitch, name="AutoSwitchThread")
     thr1.start()
     thr2 = threading.Thread(target=thrmonitor, name="MonitoringThread")
     thr2.start()
-    # what if thread begin to update values before main app run and GUI start?
-    # maybe no effect maybe causing crash
+    init_config()
     ex = App()
     w = QWidget()
     trayIcon = SystemTrayIcon(QIcon("icon.png"), w, body=ex)

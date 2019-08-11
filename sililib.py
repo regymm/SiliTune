@@ -3,8 +3,10 @@
 # Sililib, libraries and classes for SiliTune
 import sys
 import os
+import math
 import subprocess
 import logging
+from elevate import elevate
 import time
 import threading
 from configparser import ConfigParser
@@ -90,7 +92,8 @@ class MyQIntLE(QLineEdit):
         self.cmdset = cmdset
 
     def apply(self):
-        runcmd(self, self.cmdset)
+        # print(self.cmdset(self.text()))
+        runcmd(self, self.cmdset(self.text()))
 
     def real(self):
         return runresult(self, self.cmdget)
