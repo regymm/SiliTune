@@ -1,0 +1,41 @@
+[Global]
+uv enabled = 0
+
+[Power]
+noturbo = 0
+core1 = 1
+core2 = 1
+core3 = 1
+core4 = 1
+core5 = 1
+core6 = 1
+core7 = 1
+cpu = -11
+gpu = -5
+cpu cache = -11
+system agent = 0
+analog i/o = 0
+power short = 50
+time short = 40
+power long = 45
+time long = 50
+
+[Battery]
+noturbo = 1
+core1 = 1
+core2 = 1
+core3 = 0
+core4 = 0
+core5 = 0
+core6 = 0
+core7 = 0
+cpu = -12
+gpu = -6
+cpu cache = -12
+system agent = 0
+analog i/o = 0
+power short = 20
+time short = 30
+power long = 15
+time long = 50
+

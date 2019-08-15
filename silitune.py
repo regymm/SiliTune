@@ -7,6 +7,9 @@ from PyQt5.QtGui import *
 
 from sililib import *
 
+prj_name = 'SiliTune'
+prj_ver = 'v1.0'
+
 config_file = '/etc/silitune/sili.conf'
 iu_config_file = '/etc/intel-undervolt.conf'
 iu_config_file_dry = './intel-undervolt.conf'
@@ -17,7 +20,7 @@ cmd_turbo_yes = 'echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 
 cmd_battery_check = 'cat /sys/class/power_supply/BAT0/status'
 
-silitune_debug = True
+silitune_debug = 1
 
 cpu_number = int(subprocess.getstatusoutput('ls /sys/devices/system/cpu | grep \'^cpu.$\' | wc -l')[1])
 
@@ -33,6 +36,10 @@ underv_name = ['CPU', 'GPU', 'CPU Cache', 'System Agent', 'Analog I/O',
                'Power Short', 'Time Short', 'Power Long', 'Time Long']
 undervolt_max = 150
 undervolt_enabled = 0
+cmd_undervolt_apply = 'intel-undervolt apply'
+cmd_undervolt_read = 'intel-undervolt read'
+
+monitor_enabled = 0
 
 profile_name = ['Power', 'Battery']
 profile = -1
@@ -41,6 +48,26 @@ on_exit = 0
 on_started = 0
 
 main_section_name = 'Global'
+
+help_str = prj_name + ''' - A simple tool to tweak your CPU
+
+You can: 
+Run `tlp bat` and `tlp ac` with a click of mouse,
+Disable/Enable turbo boost with a click of mouse,
+Turn off/on CPU cores if you don't/do need them,
+Deal with undervolting and TDP levels easily,
+Monitor power consumption w/o typing commands,
+Auto switch between battery and AC profiles,
+
+See full manual on github.com/ustcpetergu/Silitune !
+
+Just keep in mind:
+Green things are quite safe to set and click;
+Black things may cause system to have bad peformance or other small problems;
+Red things may cause system failure, but you'll be all right after a reboot - \
+set `uv enabled = 1` in ''' + config_file + ''' to enable these options!
+
+'''
 
 
 def cmd_cpu(switch, number):
@@ -59,10 +86,39 @@ def cmd_uv_set_uv_get(option):
         elif math.fabs(val) > math.fabs(undervolt_max):
             logging.warning('Undervolting value out of range')
         else:
-            return 'sed -ie \"s/\\(^undervolt.*\'' + underv_name[option].replace('/', '\\/') + \
-                   '\'\\) *[.0-9\\-]*$/\\1 ' + value + '/g" ' + iu_config_file_dry
-        return 'false'
+            return 'sed -i.bak \"s/\\(^undervolt.*\'' + underv_name[option].replace('/', '\\/') + \
+                   '\'\\) *[.0-9\\-]*$/\\1 ' + value + '/g" ' + iu_config_file
+        return 'false in cmd_uv_set_inner'
     return cmd_uv_set_uv_inner
+
+
+def cmd_uv_set_tdp_get(option):
+    def cmd_uv_set_tdp_inner(value):
+        val = float(value)
+        if val == 0:
+            # zero means do nothing
+            return 'true'
+        elif val < 0:
+            logging.warning('TDP and Time Window should be positive')
+        else:
+            if option == 5:
+                return 'sed -i.bak \"s/\\(^power package\\) [0-9]*\\(.*$\\)/\\1 ' \
+                       + value + '\\2/g\" ' \
+                       + iu_config_file
+            elif option == 6:
+                return 'sed -i.bak \"s/\\(^power package [0-9]*\\/\\)[0-9]*\\(.*$\\)/\\1' \
+                       + value + '\\2/g\" ' \
+                       + iu_config_file
+            elif option == 7:
+                return 'sed -i.bak \"s/\\(^power package [0-9]*\\/[0-9]*\\) [0-9]*\\(.*$\\)/\\1 ' \
+                       + value + '\\2/g\" ' \
+                       + iu_config_file
+            elif option == 8:
+                return 'sed -i.bak \"s/\\(^power package [0-9]*\\/[0-9]* [0-9]*\\/\\)[0-9]*\\(.*$\\)/\\1' \
+                       + value + '\\2/g\" ' \
+                       + iu_config_file
+        return 'false in cmd_uv_set_tdp_inner'
+    return cmd_uv_set_tdp_inner
 
 
 def cmd_uv(option, setget):
@@ -70,7 +126,7 @@ def cmd_uv(option, setget):
         if option < 5:
             return cmd_uv_set_uv_get(option)
         else:
-            return lambda param: 'false'
+            return cmd_uv_set_tdp_get(option)
     elif setget == 'get':
         if option < 5:
             return 'cat ' + iu_config_file + ' | grep \"^undervolt.*\"\\\'\"' + \
@@ -118,7 +174,12 @@ def thrmonitor():
     while not on_exit:
         if on_started:
             pass
+            # print(monitor_enabled)
         time.sleep(update_interval_mon)
+
+
+# def monitor_option():
+#     pass
 
 
 def init_config():
@@ -200,6 +261,8 @@ def apply_undervolt():
         logging.info("Apply undervolt config...")
         for i in underv_array:
             i.apply()
+        runcmd(None, cmd_undervolt_apply)
+        logging.info(runresult(None, cmd_undervolt_read))
     else:
         logging.info("Undervolting not enabled.")
 
@@ -207,30 +270,46 @@ def apply_undervolt():
 class App(QWidget):
     def __init__(self):
         super().__init__()
-        self.title = "SiliTune"
+        self.title = prj_name
         self.left = 0
         self.top = 0
         self.width = 640
-        self.height = 640
+        self.height = 600
         self.logr = MyLogger()
         self.initui()
 
     def initui(self):
+        # check if dependencies like intel-undervolt is ready
+        self.check_dep()
+        # Start piling up widgets
         font = QFont()
         font.setPointSize(14)
         self.setFont(font)
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         vbox = QVBoxLayout()
+        # ----------------------------------------------
+        # --------------- basic ------------------------
+        # ----------------------------------------------
         # title
-        ltitle = MyQLabel("SiliTune v1.0")
-        vbox.addWidget(ltitle)
-        # check if dependencies like intel-undervolt is ready
-        self.check_dep()
+        hbtit = QHBoxLayout()
+        ltitle = MyQLabel(prj_name + " " + prj_ver)
+        hbtit.addWidget(ltitle)
+        hbtit.setAlignment(Qt.AlignLeft)
+        vbox.addLayout(hbtit)
+        # Help button
+        bhelp = MyQButton("Help")
+        bhelp.button.clicked.connect(self.showhelp)
+        # print(bhelp.button.styleSheet())
+        # bhelp.button.setStyleSheet('color:#00DD00')
+        pal = QPalette()
+        pal.setColor(QPalette.ButtonText, Qt.green)
+        bhelp.setPalette(pal)
         # tlp functions
         btlpbat = MyQCmdButton("tlp bat", "tlp bat")
         btlpac = MyQCmdButton("tlp ac", "tlp ac")
         hchildbox = QHBoxLayout()
+        hchildbox.addWidget(bhelp)
         hchildbox.addWidget(btlpbat)
         hchildbox.addWidget(btlpac)
         hchildbox.setAlignment(Qt.AlignLeft)
@@ -277,8 +356,10 @@ class App(QWidget):
             hb_core.addWidget(core)
         hb_core.setAlignment(Qt.AlignLeft)
         vbox.addLayout(hb_core)
-        # Power Consumption Monitoring, CPU status monitoring
-        # # undervolting enable button
+        # ----------------------------------------------
+        # --------------- undervolting -----------------
+        # ----------------------------------------------
+        # # no undervolting enable button, enable/disable in config file
         # cb_uv = QCheckBox("Enable Undervolting", self)
         # cb_uv.clicked.connect(self.uv_enable)
         # Undervolting (including TDP control)
@@ -320,22 +401,40 @@ class App(QWidget):
         if not undervolt_enabled:
             buv.setEnabled(False)
         vbox.addWidget(buv)
+        # ----------------------------------------------
+        # --------------- monitoring -------------------
+        # ----------------------------------------------
+        # Power Consumption Monitoring, CPU status monitoring
+        self.ch_mon = QCheckBox("Enable Monitor", self)
+        self.ch_mon.clicked.connect(self.monitor_option)
+        self.ch_mon.setCheckState(False)
+        pal = QPalette()
+        pal.setColor(QPalette.WindowText, Qt.green)
+        self.ch_mon.setPalette(pal)
+        vbox.addWidget(self.ch_mon)
+
+        # ----------------------------------------------
+        # --------------- bottom options ---------------
+        # ----------------------------------------------
         # Button of Save to config file
+        hboxbtm = QHBoxLayout()
         bsave = QPushButton("Save config", self)
         bsave.clicked.connect(button_save)
         bsave.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        vbox.addWidget(bsave)
+        hboxbtm.addWidget(bsave)
         # Button for read real current config
         bread = QPushButton("Read Real Values", self)
         bread.clicked.connect(read_values)
         bread.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        vbox.addWidget(bread)
+        hboxbtm.addWidget(bread)
         # Open log window
         self.logr.hide()
         blog = QPushButton("Open logger", self)
         blog.clicked.connect(self.openlogger)
         blog.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        vbox.addWidget(blog)
+        hboxbtm.addWidget(blog)
+        hboxbtm.setAlignment(Qt.AlignLeft)
+        vbox.addLayout(hboxbtm)
         # Load config
         self.setLayout(vbox)
         self.show()
@@ -352,8 +451,18 @@ class App(QWidget):
                                 'intel-undervolt configure file not found, undervolt functions will not work',
                                 QMessageBox.Yes)
 
+    def showhelp(self):
+        QMessageBox.information(self, prj_name + ' Help',
+                                help_str,
+                                QMessageBox.Yes)
+
+    def monitor_option(self):
+        global monitor_enabled
+        monitor_enabled = int(self.ch_mon.isChecked())
+
 
 if __name__ == '__main__':
+    print(prj_name + " started running...")
     if os.getuid() != 0:
         print("Are you r00t?")
         exit(-1)
@@ -372,4 +481,5 @@ if __name__ == '__main__':
     on_exit = 1
     thr1.join()
     thr2.join()
+    print("Goodbye.")
     sys.exit(0)

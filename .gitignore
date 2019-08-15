@@ -1,5 +1,6 @@
 .idea
-undervolt
 sili.conf
 __pycache__
 nohup.out
+intel-undervolt.conf
+*.bak

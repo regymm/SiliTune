@@ -6,7 +6,7 @@ import os
 import math
 import subprocess
 import logging
-from elevate import elevate
+# from elevate import elevate
 import time
 import threading
 from configparser import ConfigParser
@@ -41,7 +41,7 @@ def runcheckTF(obj, cmd, msg=msg_error):
 
 
 class MyQCmdButton(QWidget):
-    def __init__(self, name='default', cmd='pwd'):
+    def __init__(self, name='default', cmd='true'):
         super().__init__()
         # self.setMinimumSize(1, 50)
         self.name = name
@@ -59,6 +59,15 @@ class MyQCmdButton(QWidget):
         return self.button.sizeHint()
 
 
+class MyQButton(QWidget):
+    def __init__(self, name):
+        super().__init__()
+        self.button = QPushButton(name, self)
+
+    def sizeHint(self):
+        return self.button.sizeHint()
+
+
 class MyQLabel(QLabel):
     def __init__(self, *args, **kwargs):
         super(MyQLabel, self).__init__(*args, **kwargs)
@@ -71,6 +80,14 @@ class MyQLabelRed(MyQLabel):
         super(MyQLabelRed, self).__init__(*args, **kwargs)
         pal = QPalette()
         pal.setColor(QPalette.WindowText, Qt.red)
+        self.setPalette(pal)
+
+
+class MyQLabelGreen(MyQLabel):
+    def __init__(self, *args, **kwargs):
+        super(MyQLabelGreen, self).__init__(*args, **kwargs)
+        pal = QPalette()
+        pal.setColor(QPalette.WindowText, Qt.green)
         self.setPalette(pal)
 
 
