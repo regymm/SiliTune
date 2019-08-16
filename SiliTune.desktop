@@ -2,7 +2,8 @@
 Type=Application
 Name=SiliTune
 Categories=System;
-Exec=xdg-su -c 'nohup python3 /home/petergu/MyHome/Working/SiliTune/silitune.py'
+#Exec=xdg-su 'nohup python3 /home/petergu/MyHome/Working/SiliTune/silitune.py'
+Exec=gksudo python3 /home/petergu/MyHome/Working/SiliTune/silitune.py
 Icon=/home/petergu/MyHome/Working/SiliTune/icon.png
 Path=/home/petergu/MyHome/Working/SiliTune/
 Terminal=false

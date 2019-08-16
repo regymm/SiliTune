@@ -461,6 +461,34 @@ class App(QWidget):
         monitor_enabled = int(self.ch_mon.isChecked())
 
 
+class SystemTrayIcon(QSystemTrayIcon):
+    def __init__(self, icon, parent=None, body=None):
+        QSystemTrayIcon.__init__(self, icon, parent)
+        menu = QMenu(parent)
+        menu.triggered.connect(self.actions)
+        menu.addAction("Exit")
+        menu.addAction("Show")
+        menu.addAction("Hide")
+        menu.addAction("To Power")
+        menu.addAction("To Battery")
+        self.setContextMenu(menu)
+        self.body = body
+
+    def actions(self, q):
+        text = q.text()
+        print(text + " is triggered from system tray.")
+        if text == 'Exit':
+            QCoreApplication.exit()
+        elif text == 'Show':
+            self.body.show()
+        elif text == 'Hide':
+            self.body.hide()
+        elif text == 'To Power':
+            profileswitch_pgm(0)
+        elif text == 'To Battery':
+            profileswitch_pgm(1)
+
+
 if __name__ == '__main__':
     print(prj_name + " started running...")
     if os.getuid() != 0:
