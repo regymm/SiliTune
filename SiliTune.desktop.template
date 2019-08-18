@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=SiliTune
+Categories=System;
+Exec=gksudo python3 /usr/local/silitune/silitune.py
+Icon=/usr/local/silitune/icon.png
+Path=/usr/local/silitune
+Terminal=false

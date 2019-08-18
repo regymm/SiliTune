@@ -11,11 +11,11 @@ Functions to be developed:
 - [x] Enable/disable turbo boost
 - [x] Turn on/off CPU cores
 - [x] Undervolting (by `intel-undervolt`)
-- [ ] TDP level configuration (by `intel-undervolt`)
+- [x] TDP level configuration (by `intel-undervolt`)
 - [x] Auto switch profile, ~~handle ACPI events~~, continuous check (per certain seconds) for whether laptop is on AC or battery
 - [x] Easy TLP/~~PowerTOP(May cause USB mouse stop responding)~~ toggle
 - [ ] Power consumption monitor, temperature/frequency monitor
-- [ ] Easy installation
+- [x] Easy installation
 - [x] App launcher, ~~auto start~~(depends on desktop environment)
 - [x] system tray icon for easy access and hide
 
@@ -29,21 +29,25 @@ The program is written in PyQt5, so you may need to install the python3 PyQt5 li
 
 Undervolting functions depends on `intel-undervolt` module to work, which is available in AUR if you are using ArchLinux. 
 
+Desktop launcher uses `gksudo` to launch GUI programs as root, so `gksudo`(may be in package `gksu`) should be available. 
+
+#### **Installation**
+
+First, check `install.sh` to see whether there are something wrong, or some files you don't want to override. 
+
+Then run `install.sh` to install. 
+
+The program will be installed to `/usr/local/silitune`.
+
+Configure file and desktop launcher will be installed. Old configure file will be untouched. 
+
 #### **Configure files**
 
 `/etc/silitune/sili.conf` is the place of the main configure file used by silitune, an example can be found at `./sili.conf.example`. The meanings of entries in the file is obvious. The program, instead of you, will deal with it. In most cases you don't need to edit it by yourself. 
 
-But if you want to use the undervolting functions, then you should set `uv enabled = 1` in the `global` section in the configure file manually. 
+One exception: if you want to use the undervolting functions, then you should set `uv enabled = 1` in the `global` section in the configure file manually. 
 
 #### **Launcher**
-
-Modify `SiliTune.desktop`, change two `/home/petergu/MyHome/Working/SiliTune/` to the directory you cloned the project.
-
-Run `sudo cp SiliTune.desktop /usr/share/applications/` to place the launcher.
-
-Now you can find the launcher where you find all your other applications. Launch it, enter your user's password, and you can see the program running. 
-
-Close the terminal in which you entered your password, and enjoy. 
 
 DO NOT let the program auto launch in you desktop environment's settings, I encountered some problems when doing so. 
 
@@ -78,3 +82,7 @@ The power and battery profiles are switched **automatically** when you connect/d
 **System Tray**
 
 You can always right click the icon in system tray to hide or show the program, and switch profiles quickly. 
+
+#### Disclaimer
+
+As is shown in Arch Wiki, undervolting may cause "Instant hardware damage". I'm not responsible for any kind of damage or misbehavior(both you and your computer) caused by this program. 
