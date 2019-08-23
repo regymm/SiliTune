@@ -4,3 +4,7 @@ __pycache__
 nohup.out
 intel-undervolt.conf
 *.bak
+*.bin
+*.spec
+*.build
+

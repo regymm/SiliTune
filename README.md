@@ -1,20 +1,21 @@
 # SiliTune - the CPU Power Manager
 
-**WARNING: Use as your own risk. Get prepared to see your laptop on fire or freeze.**
+**WARNING: Use as your own risk! See disclaimer for details!**
 
-You want your laptop CPU works like a beast when your program is being run, and consume as less power as possible when you are on battery just browsing the net. You don't want to open a terminal and type a long command just to disable turbo boost. 
+You want your laptop CPU works like a beast when your program is being run, and consume as less power as possible when you are on battery just browsing the net. You don't want to open a terminal and type a long command just to disable turbo boost. You don't want to open a terminal and wait for powertop just to see the power consumption.
 
-With this program, you can control your CPU with just a click of mouse, and automatically switch management profiles when power cable disconnected/connected. 
+With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
 
 Functions to be developed:
 
+- [x] Friendly help and document
+- [x] Easy TLP/~~PowerTOP(May cause USB mouse stop responding)~~ toggle
 - [x] Enable/disable turbo boost
 - [x] Turn on/off CPU cores
 - [x] Undervolting (by `intel-undervolt`)
 - [x] TDP level configuration (by `intel-undervolt`)
 - [x] Auto switch profile, ~~handle ACPI events~~, continuous check (per certain seconds) for whether laptop is on AC or battery
-- [x] Easy TLP/~~PowerTOP(May cause USB mouse stop responding)~~ toggle
-- [ ] Power consumption monitor, temperature/frequency monitor
+- [x] Power consumption monitor, temperature/fan speed/frequency monitor
 - [x] Easy installation
 - [x] App launcher, ~~auto start~~(depends on desktop environment)
 - [x] system tray icon for easy access and hide
@@ -27,15 +28,17 @@ This project uses `intel-undervolt` and it's configuration file for undervolting
 
 The program is written in PyQt5, so you may need to install the python3 PyQt5 libraries. 
 
+TLP is required to monitor CPU and battery information. 
+
 Undervolting functions depends on `intel-undervolt` module to work, which is available in AUR if you are using ArchLinux. 
 
 Desktop launcher uses `gksudo` to launch GUI programs as root, so `gksudo`(may be in package `gksu`) should be available. 
 
 #### **Installation**
 
-First, check `install.sh` to see whether there are something wrong, or some files you don't want to override. 
+First, check `install.sh` to see whether there are something wrong, or some files you don't want to override, or a hidden evil `rm -rf`. 
 
-Then run `install.sh` to install. 
+Then run `install.sh` as root to install. 
 
 The program will be installed to `/usr/local/silitune`.
 
@@ -57,7 +60,7 @@ The GUI is quite simple to use.
 
 First, click Help and read it. 
 
-If you don't know the meanings of buttons, like "What's turbo boost?", or "Whether should I change system agent", then you'd better look up before tweaking these buttons. 
+If you don't know the meanings of buttons, like "What's turbo boost?", or "Whether should I change system agent", then you'd better look up before tweaking these options. 
 
 **Options, and Save**
 
@@ -71,6 +74,10 @@ As an incorrect undervolting may cause system failure, only after pressing the A
 
 If you entered an illegal value, or some buttons or options failed to work, the value on the panel will be the (bad) value your assigned, but actually the system is not modified. Press the read real values button will read the (good) values from system, then set them onto the panel. 
 
+**Monitor**
+
+
+
 **Logger**
 
 Open logger, and see if anything wrong has happened. 
@@ -83,6 +90,6 @@ The power and battery profiles are switched **automatically** when you connect/d
 
 You can always right click the icon in system tray to hide or show the program, and switch profiles quickly. 
 
-#### Disclaimer
+## Disclaimer
 
-As is shown in Arch Wiki, undervolting may cause "Instant hardware damage". I'm not responsible for any kind of damage or misbehavior(both you and your computer) caused by this program. 
+As is shown in the Arch Wiki, undervolting may cause "Instant hardware damage". I'm not responsible for any kind of damage or misbehavior(both you and your computer) caused by this program. 

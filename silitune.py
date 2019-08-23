@@ -41,11 +41,26 @@ cmd_undervolt_read = 'intel-undervolt read'
 
 monitor_enabled = 0
 
+mon_checkbox = None
+mon_name = ['CPU temp', 'Fan speed', 'Power consumption']
+mon_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g"',
+            'sudo tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
+            'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
+            then echo `cat /sys/class/power_supply/BAT0/status`; else \
+            expr `cat /sys/class/power_supply/BAT0/voltage_now` \
+            \\* `sudo tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
+            / 10000000 | awk \'{print $1/100 " W"}\'; fi'
+            ]
+mon_label_array = []
+mon_array = []
+
 profile_name = ['Power', 'Battery']
 profile = -1
 
 on_exit = 0
 on_started = 0
+
+on_front = 1
 
 main_section_name = 'Global'
 
@@ -172,9 +187,10 @@ def thrautoswitch():
 # thread for system monitoring and monitored value updating
 def thrmonitor():
     while not on_exit:
-        if on_started:
-            pass
-            # print(monitor_enabled)
+        if on_started and monitor_enabled and on_front:
+            # pause measure if program is in background, to save power
+            for i in mon_array:
+                i.measure()
         time.sleep(update_interval_mon)
 
 
@@ -192,7 +208,14 @@ def init_config():
     if config.has_option(main_section_name, 'UV Enabled'):
         undervolt_enabled = config[main_section_name]['UV Enabled'] == '1'
     else:
+        print("Create config key UV Enabled")
         config[main_section_name]['UV Enabled'] = str(undervolt_enabled)
+    global monitor_enabled
+    if config.has_option(main_section_name, 'Enable Monitor'):
+        monitor_enabled = int(config[main_section_name]['Enable Monitor'] == '1')
+    else:
+        print("Create config key Enable Monitor")
+        config[main_section_name]['Enable Monitor'] = str(monitor_enabled)
     with open(config_file, 'w', encoding='UTF-8') as fo:
         config.write(fo)
 
@@ -200,6 +223,7 @@ def init_config():
 def save_config(section):
     config = ConfigParser()
     config.read(config_file, encoding='UTF-8')
+    config[main_section_name]['Enable Monitor'] = str(int(mon_checkbox.isChecked()))
     if not config.has_section(section):
         config.add_section(section)
     checkbox_enable_array = ['1' if i.checkbox.isChecked() else '0' for i in checkbox_array]
@@ -242,6 +266,7 @@ def profileswitch(pid):
     section = profile_name[pid]
     config = ConfigParser()
     config.read(config_file, encoding='UTF-8')
+    mon_checkbox.setChecked(int(config[main_section_name]['Enable Monitor']))
     checkbox_array[0].checkbox.setChecked(config[section]['NoTurbo'] == '1')
     checkbox_array[0].exec_change()
     for i in range(cpu_number - 1):
@@ -274,7 +299,7 @@ class App(QWidget):
         self.left = 0
         self.top = 0
         self.width = 640
-        self.height = 600
+        self.height = 650
         self.logr = MyLogger()
         self.initui()
 
@@ -412,6 +437,23 @@ class App(QWidget):
         pal.setColor(QPalette.WindowText, Qt.green)
         self.ch_mon.setPalette(pal)
         vbox.addWidget(self.ch_mon)
+        global mon_checkbox
+        mon_checkbox = self.ch_mon
+        for i in range(len(mon_name)):
+            lab = MyQLabelGreen(mon_name[i])
+            mon_label_array.append(lab)
+            le = MyQLEMon(mon_cmds[i])
+            mon_array.append(le)
+        hbmon1 = QHBoxLayout()
+        for i in [0, 1]:
+            hbmon1.addWidget(mon_label_array[i])
+            hbmon1.addWidget(mon_array[i])
+        hbmon2 = QHBoxLayout()
+        for i in [2]:
+            hbmon2.addWidget(mon_label_array[i])
+            hbmon2.addWidget(mon_array[i])
+        vbox.addLayout(hbmon1)
+        vbox.addLayout(hbmon2)
 
         # ----------------------------------------------
         # --------------- bottom options ---------------
@@ -466,23 +508,26 @@ class SystemTrayIcon(QSystemTrayIcon):
         QSystemTrayIcon.__init__(self, icon, parent)
         menu = QMenu(parent)
         menu.triggered.connect(self.actions)
-        menu.addAction("Exit")
-        menu.addAction("Show")
-        menu.addAction("Hide")
         menu.addAction("To Power")
         menu.addAction("To Battery")
+        menu.addAction("Show")
+        menu.addAction("Hide")
+        menu.addAction("Exit")
         self.setContextMenu(menu)
         self.body = body
 
     def actions(self, q):
         text = q.text()
         print(text + " is triggered from system tray.")
+        global on_front
         if text == 'Exit':
             QCoreApplication.exit()
         elif text == 'Show':
             self.body.show()
+            on_front = 1
         elif text == 'Hide':
             self.body.hide()
+            on_front = 0
         elif text == 'To Power':
             profileswitch_pgm(0)
         elif text == 'To Battery':

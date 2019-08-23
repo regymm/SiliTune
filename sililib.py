@@ -105,6 +105,7 @@ class MyQIntLE(QLineEdit):
         c = self.contentsMargins()
         w = 4*fm.width('x')+m.left()+m.right()+c.left()+c.right()
         self.setFixedWidth(2 * w)
+        # cmdget and cmdset are functions
         self.cmdget = cmdget
         self.cmdset = cmdset
 
@@ -113,10 +114,19 @@ class MyQIntLE(QLineEdit):
         runcmd(self, self.cmdset(self.text()))
 
     def real(self):
-        return runresult(self, self.cmdget)
+        return runresult(None, self.cmdget)
 
     def reinit(self):
         self.setText(self.real())
+
+
+class MyQLEMon(QLineEdit):
+    def __init__(self, cmdmon):
+        super().__init__()
+        self.cmdmon = cmdmon
+
+    def measure(self):
+        self.setText(runresult(None, self.cmdmon))
 
 
 class MyQCheckBox(QWidget):
