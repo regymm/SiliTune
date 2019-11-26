@@ -6,3 +6,4 @@ Exec=gksudo python3 /usr/local/silitune/silitune.py
 Icon=/usr/local/silitune/icon.png
 Path=/usr/local/silitune
 Terminal=false
+StartupWMClass=silitune.py

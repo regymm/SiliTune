@@ -6,6 +6,10 @@ You want your laptop CPU works like a beast when your program is being run, and 
 
 With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
 
+A screenshot: 
+
+![](./screenshot.png)
+
 Functions to be developed:
 
 - [x] Friendly help and document
