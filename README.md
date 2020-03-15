@@ -1,5 +1,7 @@
 # SiliTune - the CPU Power Manager
 
+![](./silitune_logo.png)
+
 **WARNING: Use as your own risk! See disclaimer for details!**
 
 You want your laptop CPU works like a beast when your program is being run, and consume as less power as possible when you are on battery just browsing the net. You don't want to open a terminal and type a long command just to disable turbo boost. You don't want to open a terminal and wait for powertop just to see the power consumption.
