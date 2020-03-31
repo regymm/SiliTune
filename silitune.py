@@ -44,11 +44,11 @@ monitor_enabled = 0
 mon_checkbox = None
 mon_name = ['CPU temp', 'Fan speed', 'Power consumption']
 mon_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g"',
-            'sudo tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
+            'tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
             'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
             then echo `cat /sys/class/power_supply/BAT0/status`; else \
             expr `cat /sys/class/power_supply/BAT0/voltage_now` \
-            \\* `sudo tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
+            \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
             / 10000000 | awk \'{print $1/100 " W"}\'; fi'
             ]
 mon_label_array = []
