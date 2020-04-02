@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # SiliTune, a CPU power manager, by petergu
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-
 from sililib import *
 
 prj_name = 'SiliTune'
-prj_ver = 'v1.0'
+prj_ver = 'v1.1'
+prj_license = 'GPLv3'
+prj_website = 'github.com/ustcpetergu/SiliTune'
 
 config_file = '/etc/silitune/sili.conf'
 iu_config_file = '/etc/intel-undervolt.conf'
@@ -27,14 +25,14 @@ cpu_number = int(subprocess.getstatusoutput('ls /sys/devices/system/cpu | grep \
 update_interval = 2
 update_interval_mon = 2
 
-
 checkbox_array = []
 radiobtn_profile = []
+uvsetbtn = None
 underv_array = []
 underv_label_array = []
 underv_name = ['CPU', 'GPU', 'CPU Cache', 'System Agent', 'Analog I/O',
                'Power Short', 'Time Short', 'Power Long', 'Time Long']
-undervolt_max = 150
+undervolt_max = 450
 undervolt_enabled = 0
 cmd_undervolt_apply = 'intel-undervolt apply'
 cmd_undervolt_read = 'intel-undervolt read'
@@ -292,6 +290,237 @@ def apply_undervolt():
         logging.info("Undervolting not enabled.")
 
 
+def tempdisable_undervolt(tf):
+    if undervolt_enabled:
+        global uvsetbtn
+        if tf:
+            uvsetbtn.setEnabled(False)
+            for i in underv_array:
+                i.setEnabled(False)
+            # set all undervolting values to 0
+            for i in underv_array[0:5]:
+                runcmd(i, i.cmdset('0'))
+            runcmd(None, cmd_undervolt_apply)
+            logging.info(runresult(None, cmd_undervolt_read))
+        else:
+            uvsetbtn.setEnabled(True)
+            for i in underv_array:
+                i.setEnabled(True)
+            apply_undervolt()
+    else:
+        logging.info("Undervolting not enabled.")
+
+
+def tabmainsetup(self):
+    self.vbox = QVBoxLayout()
+    # ----------------------------------------------
+    # --------------- basic ------------------------
+    # ----------------------------------------------
+    # title
+    hbtit = QHBoxLayout()
+    ltitle = MyQLabel(prj_name + " " + prj_ver)
+    hbtit.addWidget(ltitle)
+    hbtit.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hbtit)
+    # Help button
+    bhelp = MyQButton("Help")
+    bhelp.button.clicked.connect(self.showhelp)
+    setcolor(bhelp, Qt.green)
+    # tlp functions
+    btlpbat = MyQCmdButton("tlp bat", "tlp bat")
+    btlpac = MyQCmdButton("tlp ac", "tlp ac")
+    hchildbox = QHBoxLayout()
+    hchildbox.addWidget(bhelp)
+    hchildbox.addWidget(btlpbat)
+    hchildbox.addWidget(btlpac)
+    hchildbox.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hchildbox)
+    # Radiobutton for profile switch
+    lprofile = MyQLabel("Profile Switch")
+    # bgprofile = QButtonGroup()
+    rbpower = QRadioButton("Power", self)
+    rbbatt = QRadioButton("Battery", self)
+    rbpower.clicked.connect(profileswitch_btn)
+    rbbatt.clicked.connect(profileswitch_btn)
+    radiobtn_profile.append(rbpower)
+    radiobtn_profile.append(rbbatt)
+    # rbpower.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    # rbbatt.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    hb1 = QHBoxLayout()
+    hb1.addWidget(lprofile)
+    hb1.addWidget(rbpower)
+    hb1.addWidget(rbbatt)
+    hb1.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hb1)
+    # CPU Turbo
+    hb2 = QHBoxLayout()
+    cboxturbo = MyQCheckBox("Disable Turbo", cmd_turbo_no, cmd_turbo_yes, cmd_turbo_get)
+    cboxturbo.reinit()
+    checkbox_array.append(cboxturbo)
+    hb2.addWidget(cboxturbo)
+    hb2.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hb2)
+    # CPU Cores
+    core_label = MyQLabel("CPU Cores")
+    self.vbox.addWidget(core_label)
+    hb_core = QHBoxLayout()
+    for i in range(cpu_number):
+        core = MyQCheckBox("%d" % i, cmd_cpu(1, i), cmd_cpu(0, i), cmd_cpu_check(i))
+        if i == 0:
+            # the cpu0 cannot be offlined, it's a dummy
+            core.checkbox.setCheckState(Qt.Checked)
+            core.checkbox.setDisabled(True)
+        else:
+            core.reinit()
+            checkbox_array.append(core)
+        hb_core.addWidget(core)
+    hb_core.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hb_core)
+    # ----------------------------------------------
+    # --------------- undervolting -----------------
+    # ----------------------------------------------
+    # no undervolting enable button, enable/disable in config file
+    # cb_uv = QCheckBox("Enable Undervolting", self)
+    # cb_uv.clicked.connect(self.uv_enable)
+    # Undervolting (including TDP control)
+    core_label = MyQLabelRed("Undervolting Control")
+    self.vbox.addWidget(core_label)
+    for i in range(len(underv_name)):
+        lab = MyQLabelRed(underv_name[i])
+        underv_label_array.append(lab)
+        lineedit = MyQIntLE(cmd_uv(i, 'get'), cmd_uv(i, 'set'))
+        underv_array.append(lineedit)
+        if not undervolt_enabled:
+            lineedit.setEnabled(False)
+    hbuv1 = QHBoxLayout()
+    for i in [0, 1, 2]:
+        hbuv1.addWidget(underv_label_array[i])
+        hbuv1.addWidget(underv_array[i])
+    hbuv2 = QHBoxLayout()
+    for i in [3, 4]:
+        hbuv2.addWidget(underv_label_array[i])
+        hbuv2.addWidget(underv_array[i])
+    hbuv2.setAlignment(Qt.AlignLeft)
+    hbuv3 = QHBoxLayout()
+    for i in [5, 6]:
+        hbuv3.addWidget(underv_label_array[i])
+        hbuv3.addWidget(underv_array[i])
+    hbuv3.setAlignment(Qt.AlignLeft)
+    hbuv4 = QHBoxLayout()
+    for i in [7, 8]:
+        hbuv4.addWidget(underv_label_array[i])
+        hbuv4.addWidget(underv_array[i])
+    hbuv4.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hbuv1)
+    self.vbox.addLayout(hbuv2)
+    self.vbox.addLayout(hbuv3)
+    self.vbox.addLayout(hbuv4)
+    # Undervolting apply button
+    global uvsetbtn
+    uvsetbtn = QPushButton("Apply Undervolt", self)
+    uvsetbtn.setStyleSheet('QPushButton {color:red;}')
+    uvsetbtn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    uvsetbtn.clicked.connect(apply_undervolt)
+    if not undervolt_enabled:
+        uvsetbtn.setEnabled(False)
+    # Undervolting temporary turn to Zeros switch
+    uvzero = QCheckBox("Temporary Disable", self)
+    uvzero.clicked.connect(tempdisable_undervolt)
+    uvzero.setCheckState(False)
+    setcolor(uvzero, Qt.red)
+    if not undervolt_enabled:
+        uvzero.setEnabled(False)
+    hbuvctrl = QHBoxLayout()
+    hbuvctrl.addWidget(uvsetbtn)
+    hbuvctrl.addWidget(uvzero)
+    hbuvctrl.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hbuvctrl)
+    # ----------------------------------------------
+    # --------------- monitoring -------------------
+    # ----------------------------------------------
+    # Power Consumption Monitoring, CPU status monitoring
+    self.ch_mon = QCheckBox("Enable Monitor", self)
+    self.ch_mon.clicked.connect(self.monitor_option)
+    self.ch_mon.setCheckState(False)
+    setcolor(self.ch_mon, Qt.green)
+    self.vbox.addWidget(self.ch_mon)
+    global mon_checkbox
+    mon_checkbox = self.ch_mon
+    for i in range(len(mon_name)):
+        lab = MyQLabelGreen(mon_name[i])
+        mon_label_array.append(lab)
+        le = MyQLEMon(mon_cmds[i])
+        mon_array.append(le)
+    hbmon1 = QHBoxLayout()
+    for i in [0, 1]:
+        hbmon1.addWidget(mon_label_array[i])
+        hbmon1.addWidget(mon_array[i])
+    hbmon2 = QHBoxLayout()
+    for i in [2]:
+        hbmon2.addWidget(mon_label_array[i])
+        hbmon2.addWidget(mon_array[i])
+    self.vbox.addLayout(hbmon1)
+    self.vbox.addLayout(hbmon2)
+
+    # ----------------------------------------------
+    # --------------- bottom options ---------------
+    # ----------------------------------------------
+    # Button of Save to config file
+    hboxbtm = QHBoxLayout()
+    bsave = QPushButton("Save config", self)
+    bsave.clicked.connect(button_save)
+    bsave.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    hboxbtm.addWidget(bsave)
+    # Button for read real current config
+    bread = QPushButton("Read Real Values", self)
+    bread.clicked.connect(read_values)
+    bread.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    hboxbtm.addWidget(bread)
+    hboxbtm.setAlignment(Qt.AlignLeft)
+    self.vbox.addLayout(hboxbtm)
+    # finish tab1
+    self.tab1.setLayout(self.vbox)
+
+
+def tabloggersetup(self):
+    font = QFont()
+    font.setPointSize(8)
+    logtextbox = QTextEditLogger(self)
+    logtextbox.widget.setFont(font)
+    # You can format what is printed to text box
+    logtextbox.setFormatter(logging.Formatter('%(asctime)s %(levelname)s:\n %(message)s'))
+    logging.getLogger().addHandler(logtextbox)
+    # You can control the logging level
+    logging.getLogger().setLevel(logging.DEBUG)
+    lgrlayout = QVBoxLayout()
+    lgrlayout.addWidget(logtextbox.widget)
+    self.tab2.setLayout(lgrlayout)
+
+
+def tabbenchsetup(self):
+    pass
+
+
+def tababoutsetup(self):
+    abox = QVBoxLayout()
+
+    lpic = QLabel(self)
+    pixmap = QPixmap('logo.png')
+    smaller = pixmap.scaled(self.width-50, self.width-50, Qt.KeepAspectRatio)
+    lpic.setPixmap(smaller)
+    abox.addWidget(lpic)
+
+    ltitle = MyQLabel(prj_name + " " + prj_ver)
+    abox.addWidget(ltitle)
+    ltitle = MyQLabel("Licensed under " + prj_license)
+    abox.addWidget(ltitle)
+    ltitle = MyQLabel("Website: " + prj_website)
+    abox.addWidget(ltitle)
+    abox.setAlignment(Qt.AlignTop)
+
+    self.tab4.setLayout(abox)
+
+
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -299,8 +528,7 @@ class App(QWidget):
         self.left = 0
         self.top = 0
         self.width = 640
-        self.height = 650
-        self.logr = MyLogger()
+        self.height = 780
         self.initui()
 
     def initui(self):
@@ -312,185 +540,43 @@ class App(QWidget):
         self.setFont(font)
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        vbox = QVBoxLayout()
-        # ----------------------------------------------
-        # --------------- basic ------------------------
-        # ----------------------------------------------
-        # title
-        hbtit = QHBoxLayout()
-        ltitle = MyQLabel(prj_name + " " + prj_ver)
-        hbtit.addWidget(ltitle)
-        hbtit.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hbtit)
-        # Help button
-        bhelp = MyQButton("Help")
-        bhelp.button.clicked.connect(self.showhelp)
-        # print(bhelp.button.styleSheet())
-        # bhelp.button.setStyleSheet('color:#00DD00')
-        pal = QPalette()
-        pal.setColor(QPalette.ButtonText, Qt.green)
-        bhelp.setPalette(pal)
-        # tlp functions
-        btlpbat = MyQCmdButton("tlp bat", "tlp bat")
-        btlpac = MyQCmdButton("tlp ac", "tlp ac")
-        hchildbox = QHBoxLayout()
-        hchildbox.addWidget(bhelp)
-        hchildbox.addWidget(btlpbat)
-        hchildbox.addWidget(btlpac)
-        hchildbox.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hchildbox)
-        # Radiobutton for profile switch
-        lprofile = MyQLabel("Profile")
-        # bgprofile = QButtonGroup()
-        rbpower = QRadioButton("Power", self)
-        rbbatt = QRadioButton("Battery", self)
-        rbpower.clicked.connect(profileswitch_btn)
-        rbbatt.clicked.connect(profileswitch_btn)
-        radiobtn_profile.append(rbpower)
-        radiobtn_profile.append(rbbatt)
-        # rbpower.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        # rbbatt.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        hb1 = QHBoxLayout()
-        hb1.addWidget(lprofile)
-        # hb1.addWidget(bgprofile)
-        hb1.addWidget(rbpower)
-        hb1.addWidget(rbbatt)
-        hb1.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hb1)
-        # CPU Turbo
-        hb2 = QHBoxLayout()
-        cboxturbo = MyQCheckBox("Disable Turbo", cmd_turbo_no, cmd_turbo_yes, cmd_turbo_get)
-        cboxturbo.reinit()
-        checkbox_array.append(cboxturbo)
-        hb2.addWidget(cboxturbo)
-        hb2.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hb2)
-        # CPU Cores
-        core_label = MyQLabel("CPU Cores")
-        vbox.addWidget(core_label)
-        hb_core = QHBoxLayout()
-        for i in range(cpu_number):
-            core = MyQCheckBox("%d" % i, cmd_cpu(1, i), cmd_cpu(0, i), cmd_cpu_check(i))
-            if i == 0:
-                # the cpu0 cannot be offlined, it's a dummy
-                core.checkbox.setCheckState(Qt.Checked)
-                core.checkbox.setDisabled(True)
-            else:
-                core.reinit()
-                checkbox_array.append(core)
-            hb_core.addWidget(core)
-        hb_core.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hb_core)
-        # ----------------------------------------------
-        # --------------- undervolting -----------------
-        # ----------------------------------------------
-        # # no undervolting enable button, enable/disable in config file
-        # cb_uv = QCheckBox("Enable Undervolting", self)
-        # cb_uv.clicked.connect(self.uv_enable)
-        # Undervolting (including TDP control)
-        for i in range(len(underv_name)):
-            lab = MyQLabelRed(underv_name[i])
-            underv_label_array.append(lab)
-            lineedit = MyQIntLE(cmd_uv(i, 'get'), cmd_uv(i, 'set'))
-            underv_array.append(lineedit)
-            if not undervolt_enabled:
-                lineedit.setEnabled(False)
-        hbuv1 = QHBoxLayout()
-        for i in [0, 1, 2]:
-            hbuv1.addWidget(underv_label_array[i])
-            hbuv1.addWidget(underv_array[i])
-        hbuv2 = QHBoxLayout()
-        for i in [3, 4]:
-            hbuv2.addWidget(underv_label_array[i])
-            hbuv2.addWidget(underv_array[i])
-        hbuv2.setAlignment(Qt.AlignLeft)
-        hbuv3 = QHBoxLayout()
-        for i in [5, 6]:
-            hbuv3.addWidget(underv_label_array[i])
-            hbuv3.addWidget(underv_array[i])
-        hbuv3.setAlignment(Qt.AlignLeft)
-        hbuv4 = QHBoxLayout()
-        for i in [7, 8]:
-            hbuv4.addWidget(underv_label_array[i])
-            hbuv4.addWidget(underv_array[i])
-        hbuv4.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hbuv1)
-        vbox.addLayout(hbuv2)
-        vbox.addLayout(hbuv3)
-        vbox.addLayout(hbuv4)
-        # Undervolting apply button
-        buv = QPushButton("Apply Undervolt", self)
-        buv.setStyleSheet('QPushButton {color:red;}')
-        buv.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        buv.clicked.connect(apply_undervolt)
-        if not undervolt_enabled:
-            buv.setEnabled(False)
-        vbox.addWidget(buv)
-        # ----------------------------------------------
-        # --------------- monitoring -------------------
-        # ----------------------------------------------
-        # Power Consumption Monitoring, CPU status monitoring
-        self.ch_mon = QCheckBox("Enable Monitor", self)
-        self.ch_mon.clicked.connect(self.monitor_option)
-        self.ch_mon.setCheckState(False)
-        pal = QPalette()
-        pal.setColor(QPalette.WindowText, Qt.green)
-        self.ch_mon.setPalette(pal)
-        vbox.addWidget(self.ch_mon)
-        global mon_checkbox
-        mon_checkbox = self.ch_mon
-        for i in range(len(mon_name)):
-            lab = MyQLabelGreen(mon_name[i])
-            mon_label_array.append(lab)
-            le = MyQLEMon(mon_cmds[i])
-            mon_array.append(le)
-        hbmon1 = QHBoxLayout()
-        for i in [0, 1]:
-            hbmon1.addWidget(mon_label_array[i])
-            hbmon1.addWidget(mon_array[i])
-        hbmon2 = QHBoxLayout()
-        for i in [2]:
-            hbmon2.addWidget(mon_label_array[i])
-            hbmon2.addWidget(mon_array[i])
-        vbox.addLayout(hbmon1)
-        vbox.addLayout(hbmon2)
 
-        # ----------------------------------------------
-        # --------------- bottom options ---------------
-        # ----------------------------------------------
-        # Button of Save to config file
-        hboxbtm = QHBoxLayout()
-        bsave = QPushButton("Save config", self)
-        bsave.clicked.connect(button_save)
-        bsave.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        hboxbtm.addWidget(bsave)
-        # Button for read real current config
-        bread = QPushButton("Read Real Values", self)
-        bread.clicked.connect(read_values)
-        bread.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        hboxbtm.addWidget(bread)
-        # Open log window
-        self.logr.hide()
-        blog = QPushButton("Open logger", self)
-        blog.clicked.connect(self.openlogger)
-        blog.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        hboxbtm.addWidget(blog)
-        hboxbtm.setAlignment(Qt.AlignLeft)
-        vbox.addLayout(hboxbtm)
-        # Load config
-        self.setLayout(vbox)
+        self.tabs = QTabWidget()
+        self.tab1 = QWidget()
+        self.tab2 = QWidget()
+        self.tab3 = QWidget()
+        self.tab4 = QWidget()
+        self.tabs.addTab(self.tab1, "Main")
+        self.tabs.addTab(self.tab2, "Logger")
+        self.tabs.addTab(self.tab3, "Bench")
+        self.tabs.addTab(self.tab4, "About")
+
+        tabmainsetup(self)
+        tabloggersetup(self)
+        tabbenchsetup(self)
+        tababoutsetup(self)
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
+
         self.show()
         # show that the main app has started
         global on_started
         on_started = 1
 
-    def openlogger(self):
-        self.logr.show()
-
     def check_dep(self):
+        if runcmd(self, 'which tlp') != 0:
+            QMessageBox.warning(self, '',
+                                'tlp executable not found!',
+                                QMessageBox.Yes)
+        if runcmd(self, 'which intel-undervolt') != 0:
+            QMessageBox.warning(self, '',
+                                'intel-undervolt executable not found!',
+                                QMessageBox.Yes)
         if runcmd(self, 'ls ' + iu_config_file) != 0:
             QMessageBox.warning(self, '',
-                                'intel-undervolt configure file not found, undervolt functions will not work',
+                                'intel-undervolt configure file not found, undervolt functions may misbehave!',
                                 QMessageBox.Yes)
 
     def showhelp(self):

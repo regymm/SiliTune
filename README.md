@@ -1,6 +1,6 @@
 # SiliTune - the CPU Power Manager
 
-![](./silitune_logo.png)
+![](./logo.png)
 
 **WARNING: Use as your own risk! See disclaimer for details!**
 
