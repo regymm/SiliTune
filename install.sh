@@ -13,7 +13,7 @@ else
 fi
 echo 'Install silitune to /usr/local'
 mkdir -pv /usr/local/silitune
-cp -av ./icon.png ./LICENSE ./README.md ./sililib.py ./silitune.py /usr/local/silitune/
+cp -av ./icon.png ./logo.png ./LICENSE ./README.md ./sililib.py ./silitune.py /usr/local/silitune/
 echo 'Install desktop entry'
 cp -av ./SiliTune.desktop.template /usr/share/applications/SiliTune.desktop
 echo 'Done.'

@@ -8,7 +8,7 @@ You want your laptop CPU works like a beast when your program is being run, and 
 
 With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
 
-A screenshot: 
+A screenshot(A stable -125mV undervolting is quite lucky, not every CPU can get this far): 
 
 ![](./screenshot.png)
 
@@ -25,8 +25,11 @@ Functions to be developed:
 - [x] Easy installation
 - [x] App launcher, ~~auto start~~(depends on desktop environment)
 - [x] system tray icon for easy access and hide
+- [x] Multiple tabs for more functions
+- [ ] Benchmark
+- [ ] Auto tune(find max Q point)
 
-This project uses `intel-undervolt` and it's configuration file for undervolting and TDP control, `intel-undervolt` is available in AUR.
+This project uses `intel-undervolt` and it's configuration file for undervolting and TDP control, `intel-undervolt` is available in AUR if you are using Arch or Manjaro.
 
 ## A Partial Usage Guide
 
