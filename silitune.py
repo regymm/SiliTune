@@ -37,6 +37,8 @@ undervolt_enabled = 0
 cmd_undervolt_apply = 'intel-undervolt apply'
 cmd_undervolt_read = 'intel-undervolt read'
 
+cmd_sync_disk = 'sync; sleep 0.1'
+
 monitor_enabled = 0
 
 mon_checkbox = None
@@ -285,6 +287,7 @@ def apply_undervolt():
         for i in underv_array:
             i.apply()
         runcmd(None, cmd_undervolt_apply)
+        runcmd(None, cmd_sync_disk)
         logging.info(runresult(None, cmd_undervolt_read))
     else:
         logging.info("Undervolting not enabled.")
@@ -301,6 +304,7 @@ def tempdisable_undervolt(tf):
             for i in underv_array[0:5]:
                 runcmd(i, i.cmdset('0'))
             runcmd(None, cmd_undervolt_apply)
+            runcmd(None, cmd_sync_disk)
             logging.info(runresult(None, cmd_undervolt_read))
         else:
             uvsetbtn.setEnabled(True)
@@ -313,12 +317,14 @@ def tempdisable_undervolt(tf):
 
 def tabmainsetup(self):
     self.vbox = QVBoxLayout()
+    self.vbox.setAlignment(Qt.AlignTop)
     # ----------------------------------------------
     # --------------- basic ------------------------
     # ----------------------------------------------
     # title
     hbtit = QHBoxLayout()
     ltitle = MyQLabel(prj_name + " " + prj_ver)
+    # ltitle.setFont(self.boldfont)
     hbtit.addWidget(ltitle)
     hbtit.setAlignment(Qt.AlignLeft)
     self.vbox.addLayout(hbtit)
@@ -384,6 +390,7 @@ def tabmainsetup(self):
     # cb_uv.clicked.connect(self.uv_enable)
     # Undervolting (including TDP control)
     core_label = MyQLabelRed("Undervolting Control")
+    # core_label.setFont(self.boldfont)
     self.vbox.addWidget(core_label)
     for i in range(len(underv_name)):
         lab = MyQLabelRed(underv_name[i])
@@ -435,32 +442,6 @@ def tabmainsetup(self):
     hbuvctrl.addWidget(uvzero)
     hbuvctrl.setAlignment(Qt.AlignLeft)
     self.vbox.addLayout(hbuvctrl)
-    # ----------------------------------------------
-    # --------------- monitoring -------------------
-    # ----------------------------------------------
-    # Power Consumption Monitoring, CPU status monitoring
-    self.ch_mon = QCheckBox("Enable Monitor", self)
-    self.ch_mon.clicked.connect(self.monitor_option)
-    self.ch_mon.setCheckState(False)
-    setcolor(self.ch_mon, Qt.green)
-    self.vbox.addWidget(self.ch_mon)
-    global mon_checkbox
-    mon_checkbox = self.ch_mon
-    for i in range(len(mon_name)):
-        lab = MyQLabelGreen(mon_name[i])
-        mon_label_array.append(lab)
-        le = MyQLEMon(mon_cmds[i])
-        mon_array.append(le)
-    hbmon1 = QHBoxLayout()
-    for i in [0, 1]:
-        hbmon1.addWidget(mon_label_array[i])
-        hbmon1.addWidget(mon_array[i])
-    hbmon2 = QHBoxLayout()
-    for i in [2]:
-        hbmon2.addWidget(mon_label_array[i])
-        hbmon2.addWidget(mon_array[i])
-    self.vbox.addLayout(hbmon1)
-    self.vbox.addLayout(hbmon2)
 
     # ----------------------------------------------
     # --------------- bottom options ---------------
@@ -478,11 +459,59 @@ def tabmainsetup(self):
     hboxbtm.addWidget(bread)
     hboxbtm.setAlignment(Qt.AlignLeft)
     self.vbox.addLayout(hboxbtm)
+
     # finish tab1
     self.tab1.setLayout(self.vbox)
 
 
+def tabmonsetup(self):
+    mbox = QVBoxLayout()
+    mbox.setAlignment(Qt.AlignTop)
+    # ----------------------------------------------
+    # --------------- monitoring -------------------
+    # ----------------------------------------------
+    # Power Consumption Monitoring, CPU status monitoring
+    self.ch_mon = QCheckBox("Enable Monitor", self)
+    self.ch_mon.clicked.connect(self.monitor_option)
+    self.ch_mon.setCheckState(False)
+    setcolor(self.ch_mon, Qt.green)
+    mbox.addWidget(self.ch_mon)
+    global mon_checkbox
+    mon_checkbox = self.ch_mon
+    for i in range(len(mon_name)):
+        lab = MyQLabelGreen(mon_name[i])
+        mon_label_array.append(lab)
+        le = MyQLEMon(mon_cmds[i])
+        mon_array.append(le)
+    hbmon1 = QHBoxLayout()
+    for i in [0, 1]:
+        hbmon1.addWidget(mon_label_array[i])
+        hbmon1.addWidget(mon_array[i])
+    hbmon2 = QHBoxLayout()
+    for i in [2]:
+        hbmon2.addWidget(mon_label_array[i])
+        hbmon2.addWidget(mon_array[i])
+    mbox.addLayout(hbmon1)
+    mbox.addLayout(hbmon2)
+    # ----------------------------------------------
+    # --------------- Data Acquisition -------------
+    # ----------------------------------------------
+    daqlabel = MyQLabelGreen("Data Acquisition")
+    # daqlabel.setFont(self.boldfont)
+    mbox.addWidget(daqlabel)
+
+
+    self.tab2.setLayout(mbox)
+
+
+def tabbenchsetup(self):
+    pass
+
+
 def tabloggersetup(self):
+    # ----------------------------------------------
+    # --------------- logger -----------------------
+    # ----------------------------------------------
     font = QFont()
     font.setPointSize(8)
     logtextbox = QTextEditLogger(self)
@@ -494,16 +523,16 @@ def tabloggersetup(self):
     logging.getLogger().setLevel(logging.DEBUG)
     lgrlayout = QVBoxLayout()
     lgrlayout.addWidget(logtextbox.widget)
-    self.tab2.setLayout(lgrlayout)
 
-
-def tabbenchsetup(self):
-    pass
+    self.tab4.setLayout(lgrlayout)
 
 
 def tababoutsetup(self):
     abox = QVBoxLayout()
 
+    # ----------------------------------------------
+    # --------------- about ------------------------
+    # ----------------------------------------------
     lpic = QLabel(self)
     pixmap = QPixmap('logo.png')
     smaller = pixmap.scaled(self.width-50, self.width-50, Qt.KeepAspectRatio)
@@ -518,7 +547,7 @@ def tababoutsetup(self):
     abox.addWidget(ltitle)
     abox.setAlignment(Qt.AlignTop)
 
-    self.tab4.setLayout(abox)
+    self.tab5.setLayout(abox)
 
 
 class App(QWidget):
@@ -535,9 +564,12 @@ class App(QWidget):
         # check if dependencies like intel-undervolt is ready
         self.check_dep()
         # Start piling up widgets
-        font = QFont()
-        font.setPointSize(14)
-        self.setFont(font)
+        self.font = QFont()
+        self.font.setPointSize(14)
+        self.boldfont = QFont()
+        self.boldfont.setPointSize(14)
+        self.boldfont.setBold(True)
+        self.setFont(self.font)
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
@@ -546,14 +578,17 @@ class App(QWidget):
         self.tab2 = QWidget()
         self.tab3 = QWidget()
         self.tab4 = QWidget()
+        self.tab5 = QWidget()
         self.tabs.addTab(self.tab1, "Main")
-        self.tabs.addTab(self.tab2, "Logger")
+        self.tabs.addTab(self.tab2, "Monitor")
         self.tabs.addTab(self.tab3, "Bench")
-        self.tabs.addTab(self.tab4, "About")
+        self.tabs.addTab(self.tab4, "Logger")
+        self.tabs.addTab(self.tab5, "About")
 
         tabmainsetup(self)
         tabloggersetup(self)
         tabbenchsetup(self)
+        tabmonsetup(self)
         tababoutsetup(self)
 
         self.layout = QVBoxLayout()
