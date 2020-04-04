@@ -23,7 +23,7 @@ silitune_debug = 1
 cpu_number = int(subprocess.getstatusoutput('ls /sys/devices/system/cpu | grep \'^cpu.$\' | wc -l')[1])
 
 update_interval = 2
-update_interval_mon = 2
+update_interval_mon = 1
 
 checkbox_array = []
 radiobtn_profile = []
@@ -42,15 +42,27 @@ cmd_sync_disk = 'sync; sleep 0.1'
 monitor_enabled = 0
 
 mon_checkbox = None
-mon_name = ['CPU temp', 'Fan speed', 'Power consumption']
+graph_checkbox = None
+mon_canvas = None
+mon_name = ['CPU temp', 'Fan speed', 'Battery', 'CPU freq']
 mon_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g"',
             'tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
             'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
             then echo `cat /sys/class/power_supply/BAT0/status`; else \
             expr `cat /sys/class/power_supply/BAT0/voltage_now` \
             \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
-            / 10000000 | awk \'{print $1/100 " W"}\'; fi'
+            / 10000000 | awk \'{print $1/100 " W"}\'; fi',
+            'cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq | \
+            sed -e "s/...$//" | tr "\\n" "," | sed -e "s/.$//"'
             ]
+monplot_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g" -e "s/ \\[.*\\]$//g"',
+                'false',
+                'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
+                then echo 0; else \
+                expr `cat /sys/class/power_supply/BAT0/voltage_now` \
+                \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
+                / 10000000 | awk \'{print $1/100}\'; fi',
+                'echo 2']
 mon_label_array = []
 mon_array = []
 
@@ -95,7 +107,11 @@ def cmd_cpu_check(number):
 
 def cmd_uv_set_uv_get(option):
     def cmd_uv_set_uv_inner(value):
-        val = float(value)
+        try:
+            val = float(value)
+        except ValueError:
+            logging.error('Undervolting value invalid!')
+            return 'false'
         if val > 0:
             logging.warning('Undervolting value should be negative')
         elif math.fabs(val) > math.fabs(undervolt_max):
@@ -109,7 +125,11 @@ def cmd_uv_set_uv_get(option):
 
 def cmd_uv_set_tdp_get(option):
     def cmd_uv_set_tdp_inner(value):
-        val = float(value)
+        try:
+            val = float(value)
+        except ValueError:
+            logging.error('TDP or Time Window value invalid!')
+            return 'false'
         if val == 0:
             # zero means do nothing
             return 'true'
@@ -191,6 +211,12 @@ def thrmonitor():
             # pause measure if program is in background, to save power
             for i in mon_array:
                 i.measure()
+            plotlist = [0, 2, 3]
+            for i in range(len(plotlist)):
+                global mon_canvas
+                if graph_checkbox.isChecked():
+                    mon_canvas.append(i, mon_array[plotlist[i]].forplot())
+
         time.sleep(update_interval_mon)
 
 
@@ -425,8 +451,10 @@ def tabmainsetup(self):
     # Undervolting apply button
     global uvsetbtn
     uvsetbtn = QPushButton("Apply Undervolt", self)
+    # setcolor(uvsetbtn, Qt.red)
     uvsetbtn.setStyleSheet('QPushButton {color:red;}')
-    uvsetbtn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    uvsetbtn.setFont(self.font)
+    # uvsetbtn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
     uvsetbtn.clicked.connect(apply_undervolt)
     if not undervolt_enabled:
         uvsetbtn.setEnabled(False)
@@ -471,35 +499,70 @@ def tabmonsetup(self):
     # --------------- monitoring -------------------
     # ----------------------------------------------
     # Power Consumption Monitoring, CPU status monitoring
+    hboxmon = QHBoxLayout()
     self.ch_mon = QCheckBox("Enable Monitor", self)
     self.ch_mon.clicked.connect(self.monitor_option)
+    self.ch_graph = QCheckBox("Enable Graph(Highly Experimental!)", self)
     self.ch_mon.setCheckState(False)
+    self.ch_graph.setCheckState(False)
     setcolor(self.ch_mon, Qt.green)
-    mbox.addWidget(self.ch_mon)
+    setcolor(self.ch_graph, Qt.red)
+    hboxmon.addWidget(self.ch_mon)
+    hboxmon.addWidget(self.ch_graph)
+    mbox.addLayout(hboxmon)
     global mon_checkbox
+    global graph_checkbox
     mon_checkbox = self.ch_mon
+    graph_checkbox = self.ch_graph
+    # Data showing area
     for i in range(len(mon_name)):
         lab = MyQLabelGreen(mon_name[i])
         mon_label_array.append(lab)
-        le = MyQLEMon(mon_cmds[i])
+        le = MyQLEMon(mon_cmds[i], monplot_cmds[i])
         mon_array.append(le)
+    hbmon0 = QHBoxLayout()
+    hbmon0.addWidget(mon_label_array[0])
+    hbmon0.addWidget(mon_array[0])
     hbmon1 = QHBoxLayout()
-    for i in [0, 1]:
-        hbmon1.addWidget(mon_label_array[i])
-        hbmon1.addWidget(mon_array[i])
+    hbmon1.addWidget(mon_label_array[1])
+    hbmon1.addWidget(mon_array[1])
     hbmon2 = QHBoxLayout()
-    for i in [2]:
-        hbmon2.addWidget(mon_label_array[i])
-        hbmon2.addWidget(mon_array[i])
+    hbmon2.addWidget(mon_label_array[2])
+    hbmon2.addWidget(mon_array[2])
+    hbmon3 = QHBoxLayout()
+    hbmon3.addWidget(mon_label_array[3])
+    hbmon3.addWidget(mon_array[3])
+    mbox.addLayout(hbmon0)
     mbox.addLayout(hbmon1)
     mbox.addLayout(hbmon2)
+    mbox.addLayout(hbmon3)
     # ----------------------------------------------
     # --------------- Data Acquisition -------------
     # ----------------------------------------------
-    daqlabel = MyQLabelGreen("Data Acquisition")
+    daqlabel = MyQLabel("Data Acquisition")
     # daqlabel.setFont(self.boldfont)
+    setcolor(daqlabel, Qt.green)
     mbox.addWidget(daqlabel)
+    daqbtnbox = QHBoxLayout()
+    daqbtnbox.setAlignment(Qt.AlignLeft)
+    btnstart = MyQButton("Start")
+    btnstart.button.clicked.connect(self.daqstart)
+    setcolor(btnstart, Qt.green)
+    btnend = MyQButton("End")
+    btnend.button.clicked.connect(self.daqend)
+    setcolor(btnend, Qt.green)
+    btnplot = MyQButton("Plot")
+    btnplot.button.clicked.connect(self.daqplot)
+    setcolor(btnplot, Qt.green)
+    daqbtnbox.addWidget(btnstart)
+    daqbtnbox.addWidget(btnend)
+    daqbtnbox.addWidget(btnplot)
+    mbox.addLayout(daqbtnbox)
 
+    global mon_canvas
+    mon_canvas = MyCanvas()
+    # mon_canvas.clear()
+    # mbox.addWidget(mon_canvas)
 
     self.tab2.setLayout(mbox)
 
@@ -622,6 +685,15 @@ class App(QWidget):
     def monitor_option(self):
         global monitor_enabled
         monitor_enabled = int(self.ch_mon.isChecked())
+
+    def daqstart(self):
+        pass
+
+    def daqend(self):
+        pass
+
+    def daqplot(self):
+        pass
 
 
 class SystemTrayIcon(QSystemTrayIcon):

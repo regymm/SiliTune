@@ -6,7 +6,6 @@ import os
 import math
 import subprocess
 import logging
-# from elevate import elevate
 import time
 import threading
 from configparser import ConfigParser
@@ -14,6 +13,61 @@ from configparser import ConfigParser
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+matplotlib.use('Qt5Agg')
+
+
+class MyCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(dpi=100)
+        super(MyCanvas, self).__init__(fig)
+        titles = ["CPU temp", "Power comsumption", "CPU freq"]
+        self.num = 3
+        self.history = 100
+        self.plist = []
+        self.pdatalist = []
+        self._plot_ref = []
+        for i in range(self.num):
+            p = fig.add_subplot(311 + i)
+            p.set_title(titles[i])
+            self.plist.append(p)
+            self.pdatalist.append(([], []))
+            self._plot_ref.append(None)
+            # self.plist[i].plot([1, 2], [3, 4])
+            # self.plist[i].plot(self.pdatalist[i][0], self.pdatalist[i][1])
+
+    def clear(self):
+        self.pdatalist = [([], []) for _ in range(self.num)]
+        for i in self.plist:
+            i.cla()
+
+    def append(self, idx, data):
+        self.pdatalist[idx][0].append(time.time())
+        self.pdatalist[idx][1].append(data)
+        # if len(self.pdatalist[idx][0]) > self.num:
+        #     self.pdatalist[idx][0] = self.pdatalist[idx][0][1:]
+        #     self.pdatalist[idx][1] = self.pdatalist[idx][1][1:]
+        xd = self.pdatalist[idx][0]
+        yd = self.pdatalist[idx][1]
+        if self._plot_ref[idx] is None:
+            plot_refs = self.plist[idx].plot(xd, yd)
+            self._plot_ref[idx] = plot_refs[0]
+        else:
+            self._plot_ref[idx].set_xdata(xd)
+            self._plot_ref[idx].set_ydata(yd)
+            self.plist[idx].set_xlim(min(xd), max(xd))
+            self.plist[idx].set_ylim(min(yd), max(yd))
+        # incremental plot needed!
+        # self.plist[idx].cla()
+        # self.plist[idx].plot(self.pdatalist[idx][0], self.pdatalist[idx][1])
+        self.draw()
+        # logging.info("Data appended")
+        logging.info(self.pdatalist[idx])
+
 
 msg_error = 'None-zero returned, command may have failed'
 
@@ -127,12 +181,22 @@ class MyQIntLE(QLineEdit):
 
 
 class MyQLEMon(QLineEdit):
-    def __init__(self, cmdmon):
+    def __init__(self, cmdmon, cmdplot=""):
         super().__init__()
         self.cmdmon = cmdmon
+        self.cmdplot = cmdplot
 
     def measure(self):
         self.setText(runresult(None, self.cmdmon))
+
+    def forplot(self):
+        data = runresult(None, self.cmdplot)
+        try:
+            data = float(data)
+            return data
+        except ValueError:
+            logging.error("Measured data not able to plot!")
+            return 0
 
 
 class MyQCheckBox(QWidget):
