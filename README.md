@@ -14,28 +14,25 @@ A screenshot(A stable -125mV undervolting is quite lucky, not every CPU can get 
 
 Functions to be developed:
 
-- [x] Friendly help and document
+- [x] Friendly help and document, easy installation, app launcher
 - [x] Easy TLP/~~PowerTOP(May cause USB mouse stop responding)~~ toggle
 - [x] Enable/disable turbo boost
 - [x] Turn on/off CPU cores
-- [x] Undervolting (by `intel-undervolt`)
-- [x] TDP level configuration (by `intel-undervolt`)
+- [x] Undervolting and TDP level configuration(by `intel-undervolt`)
 - [x] Auto switch profile, ~~handle ACPI events~~, continuous check (per certain seconds) for whether laptop is on AC or battery
 - [x] Power consumption monitor, temperature/fan speed/frequency monitor
-- [x] Easy installation
-- [x] App launcher, ~~auto start~~(depends on desktop environment)
 - [x] system tray icon for easy access and hide
 - [x] Multiple tabs for more functions
+- [x] Data acquisition & plotting
 - [ ] Benchmark
 - [ ] Auto tune(find max Q point)
-
-This project uses `intel-undervolt` and it's configuration file for undervolting and TDP control, `intel-undervolt` is available in AUR if you are using Arch or Manjaro.
+- [ ] Package in AUR
 
 ## A Partial Usage Guide
 
 #### **Dependencies**
 
-The program is written in PyQt5, so you may need to install the python3 PyQt5 libraries. 
+The program is written in PyQt5, so you may need to install the python3 `pyqt5` libraries. 
 
 TLP is required to monitor CPU and battery information. 
 
@@ -45,7 +42,7 @@ Desktop launcher uses `gksudo` to launch GUI programs as root, so `gksudo`(may b
 
 #### **Installation**
 
-First, check `install.sh` to see whether there are something wrong, or some files you don't want to override, or a hidden evil `rm -rf`. 
+First, check `install.sh` to see whether there are something wrong, or some files you don't want to override. 
 
 Then run `install.sh` as root to install. 
 
@@ -59,9 +56,11 @@ Configure file and desktop launcher will be installed. Old configure file will b
 
 One exception: if you want to use the undervolting functions, then you should set `uv enabled = 1` in the `global` section in the configure file manually. 
 
+`/etc/intel-undervolt.conf` and `/etc/intel-undervolt.conf.bak` is changed by the program for undervolting configurations. So backup the file to a name different from these two is recommended. 
+
 #### **Launcher**
 
-DO NOT let the program auto launch in you desktop environment's settings, I encountered some problems when doing so. 
+Be careful if you want to let the program auto launch in you desktop environment's settings, I encountered some problems when doing so. 
 
 ####  **Usage**
 
@@ -85,7 +84,11 @@ If you entered an illegal value, or some buttons or options failed to work, the 
 
 **Monitor**
 
+Enabled monitor to view CPU, battery and fan information real-time. Monitor will not update if the app is hide to save power. 
 
+**Data Acquisition**
+
+Press `Start` and monitor data will be recorded in memory(old ones discarded), press `End` to end. Now the collected data is in RAM: press `Save` will save a plain text dump to (default) `/usr/local/silitune/data`. Press `Plot` to plot these the data in memory via matplotlib. 
 
 **Logger**
 

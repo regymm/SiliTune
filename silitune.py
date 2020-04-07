@@ -9,6 +9,7 @@ prj_license = 'GPLv3'
 prj_website = 'github.com/ustcpetergu/SiliTune'
 
 config_file = '/etc/silitune/sili.conf'
+data_dir = '/usr/local/silitune/data'
 iu_config_file = '/etc/intel-undervolt.conf'
 iu_config_file_dry = './intel-undervolt.conf'
 
@@ -22,8 +23,8 @@ silitune_debug = 1
 
 cpu_number = int(subprocess.getstatusoutput('ls /sys/devices/system/cpu | grep \'^cpu.$\' | wc -l')[1])
 
-update_interval = 2
-update_interval_mon = 1
+update_interval_switch = 2
+update_interval_mon = 2
 
 checkbox_array = []
 radiobtn_profile = []
@@ -42,35 +43,36 @@ cmd_sync_disk = 'sync; sleep 0.1'
 monitor_enabled = 0
 
 mon_checkbox = None
-graph_checkbox = None
-mon_canvas = None
+# graph_checkbox = None
+# mon_canvas = None
 mon_name = ['CPU temp', 'Fan speed', 'Battery', 'CPU freq']
-mon_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g"',
-            'tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
-            'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
-            then echo `cat /sys/class/power_supply/BAT0/status`; else \
-            expr `cat /sys/class/power_supply/BAT0/voltage_now` \
-            \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
-            / 10000000 | awk \'{print $1/100 " W"}\'; fi',
-            'cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq | \
-            sed -e "s/...$//" | tr "\\n" "," | sed -e "s/.$//"'
-            ]
-monplot_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g" -e "s/ \\[.*\\]$//g"',
-                'false',
-                'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
-                then echo 0; else \
-                expr `cat /sys/class/power_supply/BAT0/voltage_now` \
-                \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
-                / 10000000 | awk \'{print $1/100}\'; fi',
-                'echo 2']
+batt_volt = runresult(None, 'cat /sys/class/power_supply/BAT0/voltage_now')
+# mon_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g"',
+#             'tlp-stat -t | grep Fan | sed -e "s/^.*= *//g"',
+#             'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
+#             then echo `cat /sys/class/power_supply/BAT0/status`; else \
+#             expr `cat /sys/class/power_supply/BAT0/voltage_now` \
+#             \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
+#             / 10000000 | awk \'{print $1/100 " W"}\'; fi',
+#             'cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq | \
+#             sed -e "s/...$//" | tr "\\n" "," | sed -e "s/.$//"'
+#             ]
+# monplot_cmds = ['tlp-stat -t | grep CPU | sed -e "s/^.*= *//g" -e "s/ \\[.*\\]$//g"',
+#                 'false',
+#                 'if [ `cat /sys/class/power_supply/BAT0/status` != "Discharging" ]; \
+#                 then echo 0; else \
+#                 expr `cat /sys/class/power_supply/BAT0/voltage_now` \
+#                 \\* `tlp-stat -b | grep current_now | sed -e "s/^.*= *//g;s/ .*$//g"` \
+#                 / 10000000 | awk \'{print $1/100}\'; fi',
+#                 'echo 2']
 mon_label_array = []
 mon_array = []
 
 profile_name = ['Power', 'Battery']
 profile = -1
 
-on_exit = 0
-on_started = 0
+# on_exit = 0
+# on_started = 0
 
 on_front = 1
 
@@ -185,39 +187,6 @@ def on_power():
         return True
     else:
         return False
-
-
-# thread for auto switch between AC and battery
-def thrautoswitch():
-    on_power_now = -1
-    while not on_exit:
-        if on_started:
-            on_power_last = on_power_now
-            on_power_now = on_power()
-            if on_power_last != on_power_now:
-                if on_power_now:
-                    logging.debug("Switch to AC")
-                    profileswitch_pgm(0)
-                else:
-                    logging.debug("Switch to battery")
-                    profileswitch_pgm(1)
-        time.sleep(update_interval)
-
-
-# thread for system monitoring and monitored value updating
-def thrmonitor():
-    while not on_exit:
-        if on_started and monitor_enabled and on_front:
-            # pause measure if program is in background, to save power
-            for i in mon_array:
-                i.measure()
-            plotlist = [0, 2, 3]
-            for i in range(len(plotlist)):
-                global mon_canvas
-                if graph_checkbox.isChecked():
-                    mon_canvas.append(i, mon_array[plotlist[i]].forplot())
-
-        time.sleep(update_interval_mon)
 
 
 # def monitor_option():
@@ -502,23 +471,24 @@ def tabmonsetup(self):
     hboxmon = QHBoxLayout()
     self.ch_mon = QCheckBox("Enable Monitor", self)
     self.ch_mon.clicked.connect(self.monitor_option)
-    self.ch_graph = QCheckBox("Enable Graph(Highly Experimental!)", self)
+    # self.ch_graph = QCheckBox("Enable Graph(Highly Experimental!)", self)
     self.ch_mon.setCheckState(False)
-    self.ch_graph.setCheckState(False)
+    # self.ch_graph.setCheckState(False)
     setcolor(self.ch_mon, Qt.green)
-    setcolor(self.ch_graph, Qt.red)
+    # setcolor(self.ch_graph, Qt.red)
     hboxmon.addWidget(self.ch_mon)
-    hboxmon.addWidget(self.ch_graph)
+    # hboxmon.addWidget(self.ch_graph)
     mbox.addLayout(hboxmon)
     global mon_checkbox
-    global graph_checkbox
+    # global graph_checkbox
     mon_checkbox = self.ch_mon
-    graph_checkbox = self.ch_graph
+    # graph_checkbox = self.ch_graph
     # Data showing area
     for i in range(len(mon_name)):
         lab = MyQLabelGreen(mon_name[i])
         mon_label_array.append(lab)
-        le = MyQLEMon(mon_cmds[i], monplot_cmds[i])
+        # le = MyQLEMon(mon_cmds[i], monplot_cmds[i])
+        le = MyQLEMon()
         mon_array.append(le)
     hbmon0 = QHBoxLayout()
     hbmon0.addWidget(mon_label_array[0])
@@ -554,13 +524,23 @@ def tabmonsetup(self):
     btnplot = MyQButton("Plot")
     btnplot.button.clicked.connect(self.daqplot)
     setcolor(btnplot, Qt.green)
+    btnsave = MyQButton("Save")
+    btnsave.button.clicked.connect(self.daqsave)
+    setcolor(btnsave, Qt.green)
     daqbtnbox.addWidget(btnstart)
     daqbtnbox.addWidget(btnend)
     daqbtnbox.addWidget(btnplot)
+    daqbtnbox.addWidget(btnsave)
     mbox.addLayout(daqbtnbox)
+    self.daqstatus = MyQLabel("No data.")
+    self.daqstatus.setWordWrap(True);
+    mbox.addWidget(self.daqstatus)
 
-    global mon_canvas
-    mon_canvas = MyCanvas()
+    self.daqrunning = False
+    self.daqdata = None
+
+    # global mon_canvas
+    # mon_canvas = MyCanvas()
     # mon_canvas.clear()
     # mbox.addWidget(mon_canvas)
 
@@ -568,6 +548,9 @@ def tabmonsetup(self):
 
 
 def tabbenchsetup(self):
+    # ----------------------------------------------
+    # --------------- bench ------------------------
+    # ----------------------------------------------
     pass
 
 
@@ -583,7 +566,7 @@ def tabloggersetup(self):
     logtextbox.setFormatter(logging.Formatter('%(asctime)s %(levelname)s:\n %(message)s'))
     logging.getLogger().addHandler(logtextbox)
     # You can control the logging level
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
     lgrlayout = QVBoxLayout()
     lgrlayout.addWidget(logtextbox.widget)
 
@@ -659,9 +642,19 @@ class App(QWidget):
         self.setLayout(self.layout)
 
         self.show()
-        # show that the main app has started
-        global on_started
-        on_started = 1
+        # timers: replace multithreading
+        self.timermon = QTimer()
+        self.timermon.setInterval(update_interval_mon * 1000)
+        self.timermon.timeout.connect(self.updatemon)
+        self.timermon.start()
+        self.on_power_now = -1
+        self.timerswitch = QTimer()
+        self.timerswitch.setInterval(update_interval_switch * 1000)
+        self.timerswitch.timeout.connect(self.updateswitch)
+        self.timerswitch.start()
+        # # show that the main app has started
+        # global on_started
+        # on_started = 1
 
     def check_dep(self):
         if runcmd(self, 'which tlp') != 0:
@@ -686,14 +679,95 @@ class App(QWidget):
         global monitor_enabled
         monitor_enabled = int(self.ch_mon.isChecked())
 
+    def updatemon(self):
+        if monitor_enabled and on_front:
+            results = []
+            tlp1 = runresult(None, 'tlp-stat -t')
+            cpu_temp = -273.15
+            fan_speed = []
+            fan_speed_text = ''
+            for lines in tlp1.splitlines():
+                if 'CPU temp' in lines:
+                    cpu_temp = int([s for s in lines.split() if s.isdigit()][0])
+                if 'Fan speed' in lines:
+                    fan_speed.append(int([s for s in lines.split() if s.isdigit()][0]))
+                    fan_speed_text += str(fan_speed[-1]) + ','
+            cpu_temp_text = str(cpu_temp) + ' C'
+            fan_speed_text = fan_speed_text[:-1] + ' RPM'
+            bat_stat = runresult(None, 'cat /sys/class/power_supply/BAT0/status')
+            if bat_stat == 'Discharging':
+                bat_volt = int(batt_volt)
+                bat_curr = int(runresult(None, 'cat /sys/class/power_supply/BAT0/current_now'))
+                bat_watt = bat_volt * bat_curr / 1000000000000
+                bat_watt_text = '%.2f' % bat_watt
+            else:
+                bat_watt_text = bat_stat
+                bat_watt = -1
+            cpu_freqs_orig = runresult(None, 'cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq')
+            cpu_freqs = []
+            cpu_freqs_text = ''
+            for lines in cpu_freqs_orig.splitlines():
+                cpu_freqs.append(int(lines) / 1000)
+                cpu_freqs_text += '%d,' % cpu_freqs[-1]
+            cpu_freqs_text = cpu_freqs_text[:-1]
+            mon_array[0].setText(cpu_temp_text)
+            mon_array[1].setText(fan_speed_text)
+            mon_array[2].setText(bat_watt_text)
+            mon_array[3].setText(cpu_freqs_text)
+            if self.daqrunning is True:
+                self.daqdata[0].append(time.time())
+                self.daqdata[1].append(cpu_temp)
+                self.daqdata[2].append(fan_speed)
+                self.daqdata[3].append(bat_watt)
+                self.daqdata[4].append(cpu_freqs)
+
+    def updateswitch(self):
+        on_power_last = self.on_power_now
+        self.on_power_now = on_power()
+        if on_power_last != self.on_power_now:
+            if self.on_power_now:
+                logging.debug("Switch to AC")
+                profileswitch_pgm(0)
+            else:
+                logging.debug("Switch to battery")
+                profileswitch_pgm(1)
+
     def daqstart(self):
-        pass
+        self.daqstatus.setText("Start collecting data...")
+        self.daqdata = [[], [], [], [], []]
+        self.daqrunning = True
 
     def daqend(self):
-        pass
+        self.daqstatus.setText("End collecting data...")
+        self.daqrunning = False
 
     def daqplot(self):
-        pass
+        plt.subplot(221)
+        plt.plot(self.daqdata[0], self.daqdata[1])
+        plt.title("CPU temp [C]")
+        plt.subplot(222)
+        for i in range(len(self.daqdata[2][0])):
+            plt.plot(self.daqdata[0], [x[i] for x in self.daqdata[2]])
+        plt.title("Fan speed(s) [RPM]")
+        plt.subplot(223)
+        plt.plot(self.daqdata[0], self.daqdata[3])
+        plt.title("Battery usage [W]")
+        plt.subplot(224)
+        for i in range(len(self.daqdata[4][0])):
+            plt.plot(self.daqdata[0], [x[i] for x in self.daqdata[4]])
+        plt.title("CPU frequencies [MHz]")
+        plt.show()
+        self.daqstatus.setText("Plot launched.")
+
+    def daqsave(self):
+        if self.daqdata is None:
+            logging.error("No data!")
+            return
+        runcmd(None, 'mkdir -p %s' % data_dir)
+        filename = data_dir + '/silitune-%s.dat' % time.time()
+        with open(filename, 'w') as f:
+            csv.writer(f, delimiter=',').writerows(self.daqdata)
+        self.daqstatus.setText("Data saved to %s." % filename)
 
 
 class SystemTrayIcon(QSystemTrayIcon):
@@ -733,19 +807,11 @@ if __name__ == '__main__':
         print("Are you r00t?")
         exit(-1)
     app = QApplication(sys.argv)
-    thr1 = threading.Thread(target=thrautoswitch, name="AutoSwitchThread")
-    thr1.start()
-    thr2 = threading.Thread(target=thrmonitor, name="MonitoringThread")
-    thr2.start()
     init_config()
     ex = App()
     w = QWidget()
     trayIcon = SystemTrayIcon(QIcon("icon.png"), w, body=ex)
     trayIcon.show()
     app.exec_()
-    # It's a kinda ugly thread here
-    on_exit = 1
-    thr1.join()
-    thr2.join()
     print("Goodbye.")
     sys.exit(0)

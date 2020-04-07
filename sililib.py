@@ -7,6 +7,7 @@ import math
 import subprocess
 import logging
 import time
+import csv
 import threading
 from configparser import ConfigParser
 
@@ -181,22 +182,24 @@ class MyQIntLE(QLineEdit):
 
 
 class MyQLEMon(QLineEdit):
-    def __init__(self, cmdmon, cmdplot=""):
+    def __init__(self, cmdmon="", cmdplot=""):
         super().__init__()
-        self.cmdmon = cmdmon
-        self.cmdplot = cmdplot
+        # self.cmdmon = cmdmon
+        # self.cmdplot = cmdplot
 
-    def measure(self):
-        self.setText(runresult(None, self.cmdmon))
+    # def measure(self):
+    #     text = runresult(None, self.cmdmon)
+    #     self.setText(text)
+    #     return text
 
-    def forplot(self):
-        data = runresult(None, self.cmdplot)
-        try:
-            data = float(data)
-            return data
-        except ValueError:
-            logging.error("Measured data not able to plot!")
-            return 0
+    # def forplot(self):
+    #     data = runresult(None, self.cmdplot)
+    #     try:
+    #         data = float(data)
+    #         return data
+    #     except ValueError:
+    #         logging.error("Measured data not able to plot!")
+    #         return 0
 
 
 class MyQCheckBox(QWidget):
