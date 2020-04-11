@@ -11,20 +11,21 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         filename = sys.argv[1]
     else:
-        print(sys.argv[0] + ' <datafileid>')
+        print('Usage: ' + sys.argv[0] + ' <datafile> for normal recorded data')
         sys.exit(1)
     data = []
-    with open(filename + '.dat', 'r') as f:
+    with open(filename, 'r') as f:
         reader = csv.reader(f, delimiter=',')
         for row in reader:
             data.append([ast.literal_eval(s) for s in row])
     timings = []
-    with open(filename + '-timing.dat', 'r') as f:
-        for line in f.readlines():
-            if line[0] == "[" and line[9] == "]":
-                timings.append(float(line[1:9]))
-    print(timings)
-    # print(data)
+    try:
+        with open(filename[:-4] + '-timing.dat', 'r') as f:
+            for line in f.readlines():
+                if line[0] == "[" and line[9] == "]":
+                    timings.append(float(line[1:9]))
+    except FileNotFoundError:
+        print('No timing file found, that\'s OK. Ignore. ')
     plt.subplot(221)
     plt.plot(data[0], data[1])
     plt.title("CPU temp [C]")

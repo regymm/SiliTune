@@ -732,7 +732,7 @@ class App(QWidget):
         self.left = 0
         self.top = 0
         self.width = 640
-        self.height = 780
+        self.height = 700
 
         # check if dependencies like intel-undervolt is ready
         self.check_dep()
