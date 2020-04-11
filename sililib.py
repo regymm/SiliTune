@@ -7,6 +7,7 @@ import math
 import subprocess
 import logging
 import time
+import datetime
 import csv
 import threading
 from configparser import ConfigParser
@@ -71,6 +72,13 @@ matplotlib.use('Qt5Agg')
 
 
 msg_error = 'None-zero returned, command may have failed'
+
+
+def readable_time():
+    # t = datetime.datetime.fromtimestamp(round(time.time(), 1))
+    # return '%02d%02d%02d%d' % (t.hour, t.minute, t.second, t.microsecond / 100000)
+    t = time.time()
+    return round(t - int(t/1000000)*1000000, 1)
 
 
 def runcmd(obj, cmd, msg=msg_error):

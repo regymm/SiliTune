@@ -40,11 +40,12 @@ cmd_undervolt_read = 'intel-undervolt read'
 
 cmd_sync_disk = 'sync; sleep 0.1'
 
-cmd_bench_small = '7z b -md22'
-# cmd_bench_big = '7z b'
-cmd_bench_big = 'echo 100 100 100'
-vlc_file = '/home/petergu/Downloads/video(1).mp4'
-cmd_vlc = 'vlc -f %s vlc://quit' % vlc_file
+cmd_bench_small = '7z b -md22 -mmt4'
+cmd_bench_big = '7z b -mmt4'
+# cmd_bench_big = 'echo 100 100 100'
+vlc_file = '/home/' + os.environ['SUDO_USER'] + '/Downloads/video.mp4'
+cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
+# cmd_vlc = 'true'
 
 monitor_enabled = 0
 
@@ -316,21 +317,6 @@ def do_bench(self):
     self.benching = False
 
 
-# def bench_full(self, seq):
-    # for item in seq:
-    #     if item == "video":
-    #         benchlog(self, "Video")
-    #         runresult(None, cmd_vlc)
-    #     if item == "7z":
-    #         benchlog(self, "7z")
-    #         runresult(None, cmd_bench_big)
-    #         bench_result = runresult(None, cmd_bench_big)
-    #         cpupercent, onecore, allcore = \
-    #             [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
-    #         benchlog(self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
-    # self.benching = False
-
-
 class BenchSignals(QObject):
     strsignal = pyqtSignal(str)
 
@@ -338,26 +324,88 @@ class BenchSignals(QObject):
 class BenchWorker(QRunnable):
     strsignal = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, self2):
         super(BenchWorker, self).__init__()
         self.signals = BenchSignals()
+        self.self = self2
 
     @pyqtSlot()
     def run(self):
-        string = 'asdfjsad;l'
-        self.signals.strsignal.emit(string)
-        # self.emit(pyqtSignal('notify(string)'), string)
-        # for item in seq:
-        #     if item == "video":
-        #         benchlog(self, "Video")
-        #         runresult(None, cmd_vlc)
-        #     if item == "7z":
-        #         benchlog(self, "7z")
-        #         runresult(None, cmd_bench_big)
-        #         bench_result = runresult(None, cmd_bench_big)
-        #         cpupercent, onecore, allcore = \
-        #             [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
-        #         benchlog(self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
+        benchlog(self.self, 'Start bench...')
+        self.self.daqstart()
+        # ----- prepare
+        self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
+        while on_power():
+            time.sleep(1)
+        checkbox_array[0].checkbox.setChecked(False)
+        checkbox_array[0].exec_change()
+        for i in range(cpu_number - 1):
+            checkbox_array[i + 1].checkbox.setChecked(True)
+            checkbox_array[i + 1].exec_change()
+        tempdisable_undervolt(True)
+        self.self.ch_mon.setCheckState(True)
+        self.self.updatemon()
+        # ----- action
+        time.sleep(1)
+        benchlog(self.self, 'Battery, Normal condition')
+        self.bench(["video", "7z"])
+        # ----- prepare
+        tempdisable_undervolt(False)
+        # ----- action
+        # time.sleep(1)
+        # benchlog(self.self, 'Battery, Undervolting only')
+        # self.bench(["7z"])
+        # ----- prepare
+        profileswitch(1)
+        # ----- action
+        time.sleep(1)
+        benchlog(self.self, 'Battery, Maximum power saving')
+        self.bench(["video", "7z"])
+        # ----- prepare
+        self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
+        while not on_power():
+            time.sleep(1)
+        time.sleep(1)
+        tempdisable_undervolt(True)
+        # ----- action
+        time.sleep(1)
+        benchlog(self.self, 'AC, Normal condition')
+        self.bench(["7z"])
+        # ----- prepare
+        tempdisable_undervolt(False)
+        # ----- action
+        time.sleep(1)
+        benchlog(self.self, 'AC, Undervolting')
+        self.bench(["7z"])
+        # ----- end
+        self.self.daqend()
+        savefile = self.self.daqsave()
+        timingfile = savefile[:-4] + '-timing.dat'
+        with open(timingfile, 'w') as f:
+            f.write(self.self.benchlogbox.toPlainText())
+        # self.self.daqplot()
+        benchlog(self.self, 'Bench finished.')
+        self.signals.strsignal.emit('Bench finished. \n\
+You can plot the results. And re-start the app is recommended.')
+        self.self.benching = False
+
+    def bench(self, seq):
+        for item in seq:
+            if item == "video":
+                benchlog(self.self, "[%s]Video start" % readable_time())
+                runresult(None, cmd_vlc)
+                benchlog(self.self, "[%s]Video end" % readable_time())
+            if item == "7z":
+                # warmup small run
+                benchlog(self.self, "[%s]7z warmup" % readable_time())
+                runresult(None, cmd_bench_big)
+                # real big run
+                benchlog(self.self, "[%s]7z start" % readable_time())
+                bench_result = runresult(None, cmd_bench_big)
+                benchlog(self.self, "[%s]7z end" % readable_time())
+                cpupercent, onecore, allcore = \
+                    [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
+                benchlog(self.self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
 
 
 def tabmainsetup(self):
@@ -607,13 +655,7 @@ def tabbenchsetup(self):
     # under normal load and maximum load.
     # There will be detailed prompt info to complete the test
     # Battery tests
-    # 7z bench -- Battery, Normal condition
-    # 7z bench -- Battery, Undervolting only
-    # 7z bench -- Battery, Maximized power saving(Performance loss expected)
-    # AC tests
-    # 7z bench -- AC, Normal condition
-    # 7z bench -- AC, Undervolting
-    # Max Q(Battery)
+    # TODO: Max Q(Battery)
     # (eg) 4 thr 7z bench
     # "1.5D" grid: max CPU freq, turned off CPU cores
     b_label = MyQLabel("7z Benchmark")
@@ -722,14 +764,7 @@ class App(QWidget):
         tabmonsetup(self)
         tababoutsetup(self)
 
-        # self.benchthread = BenchThread()
-        # self.connect(self.benchthread, pyqtSignal("notify(string)"), self.notify)
         self.threadpool = QThreadPool()
-        # self.benchthread = QThread()
-        # self.benchobj = BenchObj()
-        # self.benchobj.moveToThread(self.benchthread)
-        # self.benchobj.strsignal.connect(self.notify)
-        # self.benchthread.started.connect(self.benchobj.bench)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.tabs)
@@ -746,9 +781,6 @@ class App(QWidget):
         self.timerswitch.setInterval(update_interval_switch * 1000)
         self.timerswitch.timeout.connect(self.updateswitch)
         self.timerswitch.start()
-        # # show that the main app has started
-        # global on_started
-        # on_started = 1
 
     def check_dep(self):
         if runcmd(self, 'which tlp') != 0:
@@ -809,7 +841,7 @@ class App(QWidget):
             mon_array[2].setText(bat_watt_text)
             mon_array[3].setText(cpu_freqs_text)
             if self.daqrunning is True:
-                self.daqdata[0].append(time.time())
+                self.daqdata[0].append(readable_time())
                 self.daqdata[1].append(cpu_temp)
                 self.daqdata[2].append(fan_speed)
                 self.daqdata[3].append(bat_watt)
@@ -858,10 +890,11 @@ class App(QWidget):
             logging.error("No data!")
             return
         runcmd(None, 'mkdir -p %s' % data_dir)
-        filename = data_dir + '/silitune-%s.dat' % time.time()
+        filename = data_dir + '/silitune-%s.dat' % readable_time()
         with open(filename, 'w') as f:
             csv.writer(f, delimiter=',').writerows(self.daqdata)
         self.daqstatus.setText("Data saved to %s." % filename)
+        return filename
 
     def start_bench(self):
         if self.benching is False:
@@ -873,94 +906,20 @@ class App(QWidget):
         QMessageBox.information(self, '', string, QMessageBox.Yes)
 
     def full_eval(self):
-        worker = BenchWorker()
-        worker.signals.strsignal.connect(self.notify)
-        self.threadpool.start(worker)
-        # self.benchthread.start()
-        # self.benchthread = QThread()
-        # self.benchobj = BenchObj()
-        # self.benchobj.moveToThread(self.benchthread)
-        # self.benchobj.strsignal.connect(self.notify)
-        # self.benchthread.started.connect(self.benchobj.bench)
-#         if self.benching is True:
-#             QMessageBox.warning(self, '',
-#                                 'Benching is already running!',
-#                                 QMessageBox.Yes)
-#         choice = QMessageBox.information(self, 'Full Evaluation & Benchmark',
-#                                          'Make sure your computer is in good condition, \
-# and close other programs before starting benchmark. Do not change other options and follow the instructions \
-# during benchmark. This will take a few minutes. \nPress Yes to start.',
-#                                          QMessageBox.Yes, QMessageBox.No)
-#         if choice == QMessageBox.Yes:
-#             benchlog(self, 'Start bench...')
-#             # ----- prepare
-#             while on_power():
-#                 QMessageBox.information(self, '', 'Please unplug power cable.', QMessageBox.Yes)
-#                 time.sleep(5)
-#             checkbox_array[0].checkbox.setChecked(False)
-#             checkbox_array[0].exec_change()
-#             for i in range(cpu_number - 1):
-#                 checkbox_array[i + 1].checkbox.setChecked(True)
-#                 checkbox_array[i + 1].exec_change()
-#             tempdisable_undervolt(True)
-#             self.ch_mon.setCheckState(True)
-#             self.updatemon()
-#             self.daqstart()
-#             # ----- action
-#             self.benching = True
-#             time.sleep(1)
-#             benchlog(self, 'Battery, Normal condition')
-#             t = threading.Thread(name='BenchFull', target=bench_full, args=(self, ["video", "7z"]))
-#             t.start()
-#             while self.benching is True:
-#                 time.sleep(1)
-#             # ----- prepare
-#             tempdisable_undervolt(False)
-#             # ----- action
-#             self.benching = True
-#             time.sleep(1)
-#             benchlog(self, 'Battery, Undervolting only')
-#             t = threading.Thread(name='BenchFull', target=bench_full, args=(self, ["7z"]))
-#             t.start()
-#             while self.benching is True:
-#                 time.sleep(1)
-#             # ----- prepare
-#             profileswitch(1)
-#             # ----- action
-#             self.benching = True
-#             time.sleep(1)
-#             benchlog(self, 'Battery, Maximum power saving')
-#             t = threading.Thread(name='BenchFull', target=bench_full, args=(self, ["video", "7z"]))
-#             t.start()
-#             while self.benching is True:
-#                 time.sleep(1)
-#             # ----- prepare
-#             while not on_power():
-#                 QMessageBox.information(self, '', 'Please plug in power cable.', QMessageBox.Yes)
-#                 time.sleep(5)
-#             tempdisable_undervolt(True)
-#             # ----- action
-#             self.benching = True
-#             time.sleep(1)
-#             benchlog(self, 'AC, Normal condition')
-#             t = threading.Thread(name='BenchFull', target=bench_full, args=(self, ["7z", "7z"]))
-#             t.start()
-#             while self.benching is True:
-#                 time.sleep(5)
-#             # ----- prepare
-#             tempdisable_undervolt(False)
-#             # ----- action
-#             self.benching = True
-#             time.sleep(1)
-#             benchlog(self, 'AC, Undervolting')
-#             t = threading.Thread(name='BenchFull', target=bench_full, args=(self, ["7z", "7z"]))
-#             t.start()
-#             while self.benching is True:
-#                 time.sleep(5)
-#             # ----- end
-#             self.daqend()
-#             self.daqsave()
-#             self.daqplot()
+        if self.benching is True:
+            QMessageBox.warning(self, '',
+                                'Benching is already running!',
+                                QMessageBox.Yes)
+        choice = QMessageBox.information(self, 'Full Evaluation & Benchmark',
+                                         'Make sure your computer is in good condition, \
+and close other programs before starting benchmark. Do not change other options and follow the instructions \
+during benchmark. This will take a few minutes. \nPress Yes to start.',
+                                         QMessageBox.Yes, QMessageBox.No)
+        if choice == QMessageBox.Yes:
+            self.benching = True
+            worker = BenchWorker(self)
+            worker.signals.strsignal.connect(self.notify)
+            self.threadpool.start(worker)
 
 
 class SystemTrayIcon(QSystemTrayIcon):
