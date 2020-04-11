@@ -4,16 +4,22 @@ if [ $USER != 'root' ]; then
 	echo 'You should be root!'
 	exit 255
 fi
-mkdir -pv /etc/silitune
+
+# TODO: Detect components
+# - intel-undervolt (built with build-essential)
+# - tlp
+# - vlc
+# - p7zip-full
+# - python3-pyqt5 python3-matplotlib
+
 if [ -e /etc/silitune/sili.conf ]; then
 	echo 'Old configure file found, do nothing'
 else
 	echo 'Install configure file'
-	cp -v ./sili.conf.sample /etc/silitune/sili.conf
+	install -D ./sili.conf.sample /etc/silitune/sili.conf
 fi
 echo 'Install silitune to /usr/local'
-mkdir -pv /usr/local/silitune
-cp -av ./icon.png ./logo.png ./LICENSE ./README.md ./sililib.py ./silitune.py /usr/local/silitune/
+install -t /usr/local/silitune/ ./icon.png ./logo.png ./LICENSE ./README.md ./sililib.py ./silitune.py
 echo 'Install desktop entry'
-cp -av ./SiliTune.desktop.template /usr/share/applications/SiliTune.desktop
+install -D ./SiliTune.desktop.template /usr/share/applications/SiliTune.desktop
 echo 'Done.'
