@@ -2,6 +2,7 @@
 # SiliTune, a CPU power manager, by petergu
 
 from sililib import *
+import os
 
 prj_name = 'SiliTune'
 prj_ver = 'v1.1'
@@ -17,7 +18,27 @@ cmd_turbo_get = 'cat /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_no = 'echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_yes = 'echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo'
 
-cmd_battery_check = 'cat /sys/class/power_supply/BAT0/status'
+
+# detect battery name
+def detect_battery(name):
+    try:
+        os.stat("/sys/class/power_supply/{}/status".format(name))
+        return True
+    except FileNotFoundError:
+        return False
+
+batt_names_possible = ['BAT0', 'BAT1']
+batt_name = None
+
+for name in batt_names_possible:
+    if detect_battery(name):
+        batt_name = name
+
+if batt_name == None:
+    logging.error('battery name invalid!')
+    batt_name = "---"
+
+cmd_battery_check = 'cat /sys/class/power_supply/{}/status'.format(batt_name)
 
 silitune_debug = 1
 
@@ -53,7 +74,7 @@ mon_checkbox = None
 # graph_checkbox = None
 # mon_canvas = None
 mon_name = ['CPU temp', 'Fan speed', 'Battery', 'CPU freq']
-batt_volt = runresult(None, 'cat /sys/class/power_supply/BAT0/voltage_now')
+batt_volt = runresult(None, 'cat /sys/class/power_supply/{}/voltage_now'.format(batt_name))
 mon_label_array = []
 mon_array = []
 
@@ -820,11 +841,22 @@ class App(QWidget):
                     fan_speed_text += str(fan_speed[-1]) + ','
             cpu_temp_text = str(cpu_temp) + ' C'
             fan_speed_text = fan_speed_text[:-1] + ' RPM'
-            bat_stat = runresult(None, 'cat /sys/class/power_supply/BAT0/status')
+            bat_stat = runresult(None, 'cat /sys/class/power_supply/{}/status'.format(batt_name))
             if bat_stat == 'Discharging':
                 bat_volt = int(batt_volt)
-                bat_curr = int(runresult(None, 'cat /sys/class/power_supply/BAT0/current_now'))
-                bat_watt = bat_volt * bat_curr / 1000000000000
+                # fix for thinkpad t450
+                try:
+                    os.stat('/sys/class/power_supply/{}/current_now'.format(batt_name))
+                    bat_curr = int(runresult(None, 'cat /sys/class/power_supply/{}/current_now'.format(batt_name)))
+                    bat_watt = bat_volt * bat_curr / 1000000000000
+                except FileNotFoundError:
+                    try:
+                        os.stat('/sys/class/power_supply/{}/power_now'.format(batt_name))
+                        bat_watt = int(runresult(None, 'cat /sys/class/power_supply/{}/power_now'.format(batt_name))) / 1000000
+                    except FileNotFoundError:
+                        logging.error('not found power_now or current_now, bat watt invalid')
+                        bat_watt = 0
+                
                 bat_watt_text = '%.2f' % bat_watt
             else:
                 bat_watt_text = bat_stat
