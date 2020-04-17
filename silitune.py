@@ -2,7 +2,6 @@
 # SiliTune, a CPU power manager, by petergu
 
 from sililib import *
-import os
 
 prj_name = 'SiliTune'
 prj_ver = 'v1.1'
@@ -26,6 +25,7 @@ def detect_battery(name):
         return True
     except FileNotFoundError:
         return False
+
 
 batt_names_possible = ['BAT0', 'BAT1']
 batt_name = None
@@ -62,11 +62,11 @@ cmd_undervolt_read = 'intel-undervolt read'
 cmd_sync_disk = 'sync; sleep 0.1'
 
 cmd_bench_small = '7z b -md22 -mmt4'
-cmd_bench_big = '7z b -mmt4'
-# cmd_bench_big = 'echo 100 100 100'
+# cmd_bench_big = '7z b -mmt4'
+cmd_bench_big = 'echo 100 100 100'
 vlc_file = '/home/' + os.environ['SUDO_USER'] + '/Downloads/video.mp4'
-cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
-# cmd_vlc = 'true'
+# cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
+cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc vlc://quit'
 
 monitor_enabled = 0
 
@@ -355,9 +355,9 @@ class BenchWorker(QRunnable):
         benchlog(self.self, 'Start bench...')
         self.self.daqstart()
         # ----- prepare
-        self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
-        while on_power():
-            time.sleep(1)
+        # self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
+        # while on_power():
+        #     time.sleep(1)
         checkbox_array[0].checkbox.setChecked(False)
         checkbox_array[0].exec_change()
         for i in range(cpu_number - 1):
@@ -383,9 +383,9 @@ class BenchWorker(QRunnable):
         benchlog(self.self, 'Battery, Maximum power saving')
         self.bench(["video", "7z"])
         # ----- prepare
-        self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
-        while not on_power():
-            time.sleep(1)
+        # self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
+        # while not on_power():
+        #     time.sleep(1)
         time.sleep(1)
         tempdisable_undervolt(True)
         # ----- action
@@ -424,8 +424,12 @@ You can plot the results. And re-start the app is recommended.')
                 benchlog(self.self, "[%s]7z start" % readable_time())
                 bench_result = runresult(None, cmd_bench_big)
                 benchlog(self.self, "[%s]7z end" % readable_time())
-                cpupercent, onecore, allcore = \
-                    [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
+                try:
+                    cpupercent, onecore, allcore = \
+                        [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
+                except ValueError:
+                    cpupercent, onecore, allcore = (-1, -1, -1)
+                    logging.error("7z data error!")
                 benchlog(self.self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
 
 
@@ -835,9 +839,16 @@ class App(QWidget):
             fan_speed_text = ''
             for lines in tlp1.splitlines():
                 if 'CPU temp' in lines:
-                    cpu_temp = int([s for s in lines.split() if s.isdigit()][0])
+                    try:
+                        cpu_temp = int([s for s in lines.split() if s.isdigit()][0])
+                    except IndexError:
+                        logging.error("Error getting CPU temperature!")
                 if 'Fan speed' in lines:
-                    fan_speed.append(int([s for s in lines.split() if s.isdigit()][0]))
+                    try:
+                        fan_speed.append(int([s for s in lines.split() if s.isdigit()][0]))
+                    except IndexError:
+                        logging.error("Error getting fan speed!")
+                        fan_speed.append([-1])
                     fan_speed_text += str(fan_speed[-1]) + ','
             cpu_temp_text = str(cpu_temp) + ' C'
             fan_speed_text = fan_speed_text[:-1] + ' RPM'
@@ -900,6 +911,8 @@ class App(QWidget):
         self.daqrunning = False
 
     def daqplot(self):
+        if self.daqdata is None or len(self.daqdata[0]) == 0:
+            return
         plt.subplot(221)
         plt.plot(self.daqdata[0], self.daqdata[1])
         plt.title("CPU temp [C]")
