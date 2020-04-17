@@ -62,11 +62,12 @@ cmd_undervolt_read = 'intel-undervolt read'
 cmd_sync_disk = 'sync; sleep 0.1'
 
 cmd_bench_small = '7z b -md22 -mmt4'
-# cmd_bench_big = '7z b -mmt4'
-cmd_bench_big = 'echo 100 100 100'
+# cmd_bench_small = '7z b -mmt4'
+cmd_bench_big = '7z b -mmt4'
+# cmd_bench_big = 'echo 100 100 100'
 vlc_file = '/home/' + os.environ['SUDO_USER'] + '/Downloads/video.mp4'
-# cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
-cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc vlc://quit'
+cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
+# cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc vlc://quit'
 
 monitor_enabled = 0
 
@@ -355,9 +356,9 @@ class BenchWorker(QRunnable):
         benchlog(self.self, 'Start bench...')
         self.self.daqstart()
         # ----- prepare
-        # self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
-        # while on_power():
-        #     time.sleep(1)
+        self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
+        while on_power():
+            time.sleep(1)
         checkbox_array[0].checkbox.setChecked(False)
         checkbox_array[0].exec_change()
         for i in range(cpu_number - 1):
@@ -383,9 +384,9 @@ class BenchWorker(QRunnable):
         benchlog(self.self, 'Battery, Maximum power saving')
         self.bench(["video", "7z"])
         # ----- prepare
-        # self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
-        # while not on_power():
-        #     time.sleep(1)
+        self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
+        while not on_power():
+            time.sleep(1)
         time.sleep(1)
         tempdisable_undervolt(True)
         # ----- action
