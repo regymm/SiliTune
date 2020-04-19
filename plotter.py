@@ -26,6 +26,19 @@ if __name__ == '__main__':
                     timings.append(float(line[1:9]))
     except FileNotFoundError:
         print('No timing file found, that\'s OK. Ignore. ')
+    if timings != []:
+        for i in range(len(timings) - 1):
+            avg = 0
+            num = 0
+            for j in range(len(data[0])):
+                if timings[i] < data[0][j] and data[0][j] < timings[i + 1]:
+                    avg += data[3][j]
+                    num += 1
+            try:
+                avg /= num
+            except ZeroDivisionError:
+                avg = -1
+            print("Avg power: ", avg)
     plt.subplot(221)
     plt.plot(data[0], data[1])
     plt.title("CPU temp [C]")

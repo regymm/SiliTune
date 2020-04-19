@@ -1,0 +1,26 @@
+	CPU%	1CoreMIPS	AllCoreMIPS
+Start bench...
+Battery, Normal condition
+[218344.8]Video start
+[218399.7]Video end
+[218399.8]7z warmup
+[218443.1]7z start
+[218488.7]7z end
+	371		2539		9367
+Battery, Maximum power saving
+[218490.8]Video start
+[218545.6]Video end
+[218545.6]7z warmup
+[218604.1]7z start
+[218663.7]7z end
+	351		2066		7176
+AC, Normal condition
+[218764.3]7z warmup
+[218793.3]7z start
+[218824.9]7z end
+	378		3584		13455
+AC, Undervolting
+[218826.1]7z warmup
+[218855.1]7z start
+[218884.2]7z end
+	379		3835		14494
