@@ -6,9 +6,9 @@
 
 You want your laptop CPU works like a beast when your program is being run, and consume as less power as possible when you are on battery just browsing the net. You don't want to open a terminal and type a long command just to disable turbo boost. You don't want to open a terminal and wait for powertop just to see the power consumption.
 
-With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
+With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, monitor frequently-used parameters, and do benchmarks and data collections easily. 
 
-A screenshot(A stable -125mV undervolting is quite lucky, not every CPU can get this far): 
+A screenshot(A stable -125mV undervolting is quite lucky, not every low-voltage CPU can get this far): 
 
 ![](./screenshot.png)
 
@@ -49,7 +49,7 @@ TLP
 
 VLC media player for benchmark uses
 
-`7z` for benchmark uses
+`p7zip-full` for benchmark uses
 
 #### Installation
 
