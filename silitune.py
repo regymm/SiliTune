@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # SiliTune, a CPU power manager, by petergu
 
+import sys
+sys.path.append("/usr/lib/silitune")
 from sililib import *
 
 prj_name = 'SiliTune'
@@ -8,10 +10,9 @@ prj_ver = 'v1.1'
 prj_license = 'GPLv3'
 prj_website = 'github.com/ustcpetergu/SiliTune'
 
-config_file = '/etc/silitune/sili.conf'
-data_dir = '/usr/local/silitune/data'
+config_file = '/etc/silitune.conf'
+data_dir = '/var/lib/silitune'
 iu_config_file = '/etc/intel-undervolt.conf'
-iu_config_file_dry = './intel-undervolt.conf'
 
 cmd_turbo_get = 'cat /sys/devices/system/cpu/intel_pstate/no_turbo'
 cmd_turbo_no = 'echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo'
@@ -63,17 +64,10 @@ cmd_sync_disk = 'sync; sleep 0.1'
 
 cmd_bench_small = '7z b -md22 -mmt4'
 # cmd_bench_small = '7z b -mmt4'
-cmd_bench_big = '7z b -mmt4'
-# cmd_bench_big = 'echo 100 100 100'
-vlc_file = '/home/' + os.environ['SUDO_USER'] + '/Downloads/video.mp4'
-cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc --ignore-config -f %s vlc://quit' % vlc_file
-# cmd_vlc = 'sudo -u ' + os.environ['SUDO_USER'] + ' vlc vlc://quit'
 
 monitor_enabled = 0
 
 mon_checkbox = None
-# graph_checkbox = None
-# mon_canvas = None
 mon_name = ['CPU temp', 'Fan speed', 'Battery', 'CPU freq']
 batt_volt = runresult(None, 'cat /sys/class/power_supply/{}/voltage_now'.format(batt_name))
 mon_label_array = []
@@ -82,31 +76,15 @@ mon_array = []
 profile_name = ['Power', 'Battery']
 profile = -1
 
-# on_exit = 0
-# on_started = 0
-
 on_front = 1
 
 main_section_name = 'Global'
 
-help_str = prj_name + ''' - A simple tool to tweak your CPU
-
-You can: 
-Run `tlp bat` and `tlp ac` with a click of mouse,
-Disable/Enable turbo boost with a click of mouse,
-Turn off/on CPU cores if you don't/do need them,
-Deal with undervolting and TDP levels easily,
-Monitor power consumption w/o typing commands,
-Auto switch between battery and AC profiles,
-
-See full manual on github.com/ustcpetergu/Silitune !
-
-Just keep in mind:
-Green things are quite safe to set and click;
-Black things may cause system to have bad peformance or other small problems;
-Red things may cause system failure, but you'll be all right after a reboot - \
-set `uv enabled = 1` in ''' + config_file + ''' to enable these options!
-
+help_str = prj_name + ''' - the CPU power manager and undervolting tuner with GUI
+Detailed usage on github.com/ustcpetergu/Silitune
+Set `uv enabled = 1` in ''' + config_file + ''' to enable undervolting options. 
+And make sure you have a valid intel-undervolt config file. 
+Be careful!
 '''
 
 
@@ -198,10 +176,6 @@ def on_power():
         return True
     else:
         return False
-
-
-# def monitor_option():
-#     pass
 
 
 def init_config():
@@ -337,101 +311,6 @@ def do_bench(self):
         benchlog(self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
         is_continue = self.ch_b.isChecked()
     self.benching = False
-
-
-class BenchSignals(QObject):
-    strsignal = pyqtSignal(str)
-
-
-class BenchWorker(QRunnable):
-    strsignal = pyqtSignal(str)
-
-    def __init__(self, self2):
-        super(BenchWorker, self).__init__()
-        self.signals = BenchSignals()
-        self.self = self2
-
-    @pyqtSlot()
-    def run(self):
-        benchlog(self.self, 'Start bench...')
-        self.self.daqstart()
-        # ----- prepare
-        self.signals.strsignal.emit('Please unplug power cable if haven\'t.')
-        while on_power():
-            time.sleep(1)
-        checkbox_array[0].checkbox.setChecked(False)
-        checkbox_array[0].exec_change()
-        for i in range(cpu_number - 1):
-            checkbox_array[i + 1].checkbox.setChecked(True)
-            checkbox_array[i + 1].exec_change()
-        tempdisable_undervolt(True)
-        self.self.ch_mon.setCheckState(True)
-        self.self.updatemon()
-        # ----- action
-        time.sleep(1)
-        benchlog(self.self, 'Battery, Normal condition')
-        self.bench(["video", "7z"])
-        # ----- prepare
-        tempdisable_undervolt(False)
-        # ----- action
-        # time.sleep(1)
-        # benchlog(self.self, 'Battery, Undervolting only')
-        # self.bench(["7z"])
-        # ----- prepare
-        profileswitch(1)
-        # ----- action
-        time.sleep(1)
-        benchlog(self.self, 'Battery, Maximum power saving')
-        self.bench(["video", "7z"])
-        # ----- prepare
-        self.signals.strsignal.emit('Please plug in power cable if haven\'t.')
-        while not on_power():
-            time.sleep(1)
-        time.sleep(1)
-        tempdisable_undervolt(True)
-        # ----- action
-        time.sleep(1)
-        benchlog(self.self, 'AC, Normal condition')
-        self.bench(["7z"])
-        # ----- prepare
-        tempdisable_undervolt(False)
-        # ----- action
-        time.sleep(1)
-        benchlog(self.self, 'AC, Undervolting')
-        self.bench(["7z"])
-        # ----- end
-        self.self.daqend()
-        savefile = self.self.daqsave()
-        timingfile = savefile[:-4] + '-timing.dat'
-        with open(timingfile, 'w') as f:
-            f.write(self.self.benchlogbox.toPlainText())
-        # self.self.daqplot()
-        benchlog(self.self, 'Bench finished.')
-        self.signals.strsignal.emit('Bench finished. \n\
-You can plot the results. And re-start the app is recommended.')
-        self.self.benching = False
-
-    def bench(self, seq):
-        for item in seq:
-            if item == "video":
-                benchlog(self.self, "[%s]Video start" % readable_time())
-                runresult(None, cmd_vlc)
-                benchlog(self.self, "[%s]Video end" % readable_time())
-            if item == "7z":
-                # warmup small run
-                benchlog(self.self, "[%s]7z warmup" % readable_time())
-                runresult(None, cmd_bench_big)
-                # real big run
-                benchlog(self.self, "[%s]7z start" % readable_time())
-                bench_result = runresult(None, cmd_bench_big)
-                benchlog(self.self, "[%s]7z end" % readable_time())
-                try:
-                    cpupercent, onecore, allcore = \
-                        [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
-                except ValueError:
-                    cpupercent, onecore, allcore = (-1, -1, -1)
-                    logging.error("7z data error!")
-                benchlog(self.self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
 
 
 def tabmainsetup(self):
@@ -595,23 +474,16 @@ def tabmonsetup(self):
     hboxmon = QHBoxLayout()
     self.ch_mon = QCheckBox("Enable Monitor", self)
     self.ch_mon.clicked.connect(self.monitor_option)
-    # self.ch_graph = QCheckBox("Enable Graph(Highly Experimental!)", self)
     self.ch_mon.setCheckState(False)
-    # self.ch_graph.setCheckState(False)
     setcolor(self.ch_mon, Qt.green)
-    # setcolor(self.ch_graph, Qt.red)
     hboxmon.addWidget(self.ch_mon)
-    # hboxmon.addWidget(self.ch_graph)
     mbox.addLayout(hboxmon)
     global mon_checkbox
-    # global graph_checkbox
     mon_checkbox = self.ch_mon
-    # graph_checkbox = self.ch_graph
     # Data showing area
     for i in range(len(mon_name)):
         lab = MyQLabelGreen(mon_name[i])
         mon_label_array.append(lab)
-        # le = MyQLEMon(mon_cmds[i], monplot_cmds[i])
         le = MyQLEMon()
         mon_array.append(le)
     hbmon0 = QHBoxLayout()
@@ -663,11 +535,6 @@ def tabmonsetup(self):
     self.daqrunning = False
     self.daqdata = None
 
-    # global mon_canvas
-    # mon_canvas = MyCanvas()
-    # mon_canvas.clear()
-    # mbox.addWidget(mon_canvas)
-
     self.tab2.setLayout(mbox)
 
 
@@ -677,27 +544,19 @@ def tabbenchsetup(self):
     # ----------------------------------------------
     # --------------- bench ------------------------
     # ----------------------------------------------
-    # A sequence of benchmark that test the power comsumption and performance
-    # under normal load and maximum load.
-    # There will be detailed prompt info to complete the test
-    # Battery tests
-    # TODO: Max Q(Battery)
-    # (eg) 4 thr 7z bench
-    # "1.5D" grid: max CPU freq, turned off CPU cores
+    # this is stable branch, so brutal and normally useless full-benchmark is removed.
+    # see dev branch for details.
     b_label = MyQLabel("7z Benchmark")
     mbox.addWidget(b_label)
     hboxb = QHBoxLayout()
     hboxb.setAlignment(Qt.AlignLeft)
-    self.ch_b = QCheckBox("Start Again When Finished", self)
+    self.ch_b = QCheckBox("Continuous Bench", self)
     self.ch_b.setCheckState(False)
     hboxb.addWidget(self.ch_b)
     bbtn = MyQButton("Start Bench")
     bbtn.button.clicked.connect(self.start_bench)
     hboxb.addWidget(bbtn)
     mbox.addLayout(hboxb)
-    fullbbtn = MyQButton("Start Full Evaluation")
-    fullbbtn.button.clicked.connect(self.full_eval)
-    mbox.addWidget(fullbbtn)
 
     self.benching = False
 
@@ -730,7 +589,6 @@ def tabloggersetup(self):
 
 def tababoutsetup(self):
     abox = QVBoxLayout()
-
     # ----------------------------------------------
     # --------------- about ------------------------
     # ----------------------------------------------
@@ -856,7 +714,7 @@ class App(QWidget):
             bat_stat = runresult(None, 'cat /sys/class/power_supply/{}/status'.format(batt_name))
             if bat_stat == 'Discharging':
                 bat_volt = int(batt_volt)
-                # fix for thinkpad t450
+                # fix for some thinkpad models
                 try:
                     os.stat('/sys/class/power_supply/{}/current_now'.format(batt_name))
                     bat_curr = int(runresult(None, 'cat /sys/class/power_supply/{}/current_now'.format(batt_name)))
@@ -868,7 +726,6 @@ class App(QWidget):
                     except FileNotFoundError:
                         logging.error('not found power_now or current_now, bat watt invalid')
                         bat_watt = 0
-                
                 bat_watt_text = '%.2f' % bat_watt
             else:
                 bat_watt_text = bat_stat
@@ -951,22 +808,6 @@ class App(QWidget):
     def notify(self, string="Nope"):
         QMessageBox.information(self, '', string, QMessageBox.Yes)
 
-    def full_eval(self):
-        if self.benching is True:
-            QMessageBox.warning(self, '',
-                                'Benching is already running!',
-                                QMessageBox.Yes)
-        choice = QMessageBox.information(self, 'Full Evaluation & Benchmark',
-                                         'Make sure your computer is in good condition, \
-and close other programs before starting benchmark. Do not change other options and follow the instructions \
-during benchmark. This will take a few minutes. \nPress Yes to start.',
-                                         QMessageBox.Yes, QMessageBox.No)
-        if choice == QMessageBox.Yes:
-            self.benching = True
-            worker = BenchWorker(self)
-            worker.signals.strsignal.connect(self.notify)
-            self.threadpool.start(worker)
-
 
 class SystemTrayIcon(QSystemTrayIcon):
     def __init__(self, icon, parent=None, body=None):
@@ -975,6 +816,7 @@ class SystemTrayIcon(QSystemTrayIcon):
         menu.triggered.connect(self.actions)
         menu.addAction("To Power")
         menu.addAction("To Battery")
+        menu.addAction("Re-apply Undervolt")
         menu.addAction("Show")
         menu.addAction("Hide")
         menu.addAction("Exit")
@@ -997,6 +839,8 @@ class SystemTrayIcon(QSystemTrayIcon):
             profileswitch_pgm(0)
         elif text == 'To Battery':
             profileswitch_pgm(1)
+        elif text == 'Re-apply Undervolt':
+            apply_undervolt()
 
 
 if __name__ == '__main__':
