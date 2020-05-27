@@ -12,6 +12,7 @@ prj_website = 'github.com/ustcpetergu/SiliTune'
 
 config_file = '/etc/silitune.conf'
 data_dir = '/var/lib/silitune'
+image_dir = '/usr/lib/silitune'
 iu_config_file = '/etc/intel-undervolt.conf'
 
 cmd_turbo_get = 'cat /sys/devices/system/cpu/intel_pstate/no_turbo'
@@ -306,8 +307,11 @@ def do_bench(self):
     is_continue = True
     while is_continue:
         bench_result = runresult(None, cmd_bench_small)
-        cpupercent, onecore, allcore = \
-            [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
+        try:
+            cpupercent, onecore, allcore = \
+                [int(s) for s in bench_result.splitlines()[-1].split() if s.isdigit()]
+        except ValueError:
+            cpupercent, onecore, allcore = -1, -1, -1 
         benchlog(self, "\t%d\t\t%d\t\t%d" % (cpupercent, onecore, allcore))
         is_continue = self.ch_b.isChecked()
     self.benching = False
@@ -593,7 +597,7 @@ def tababoutsetup(self):
     # --------------- about ------------------------
     # ----------------------------------------------
     lpic = QLabel(self)
-    pixmap = QPixmap('logo.png')
+    pixmap = QPixmap(image_dir + '/logo.png')
     smaller = pixmap.scaled(self.width-50, self.width-50, Qt.KeepAspectRatio)
     lpic.setPixmap(smaller)
     abox.addWidget(lpic)
@@ -852,7 +856,7 @@ if __name__ == '__main__':
     init_config()
     ex = App()
     w = QWidget()
-    trayIcon = SystemTrayIcon(QIcon("icon.png"), w, body=ex)
+    trayIcon = SystemTrayIcon(QIcon(image_dir + "/icon.png"), w, body=ex)
     trayIcon.show()
     app.exec_()
     print("Goodbye.")

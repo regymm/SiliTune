@@ -8,18 +8,18 @@ fi
 # TODO: Detect components
 # - intel-undervolt (built with build-essential)
 # - tlp
-# - vlc
-# - p7zip-full
 # - python3-pyqt5 python3-matplotlib
+# - (optional) p7zip-full
 
-if [ -e /etc/silitune/sili.conf ]; then
+if [ -e /etc/silitune.conf ]; then
 	echo 'Old configure file found, do nothing'
 else
 	echo 'Install configure file'
-	install -D ./sili.conf.sample /etc/silitune/sili.conf
+	install -D ./silitune.conf /etc/silitune.conf
 fi
-echo 'Install silitune to /usr/local'
-install -t /usr/local/silitune/ ./icon.png ./logo.png ./LICENSE ./README.md ./sililib.py ./silitune.py
-echo 'Install desktop entry'
-install -D ./SiliTune.desktop.template /usr/share/applications/SiliTune.desktop
+echo 'Install silitune'
+install -D -m755 ./silitune.py /usr/bin/silitune
+install -d /usr/share/applications /usr/lib/silitune /var/lib/silitune
+install -D ./silitune.desktop /usr/share/applications/silitune.desktop
+install -D ./icon.png ./logo.png ./sililib.py ./plotter.py /usr/lib/silitune/
 echo 'Done.'

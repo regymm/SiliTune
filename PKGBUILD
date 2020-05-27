@@ -38,7 +38,7 @@ check() {
 package() {
   cd "$srcdir/${pkgname%-git}"
 
-  install -D ./sili.conf.sample "$pkgdir/etc/silitune.conf"
+  install -D ./silitune.conf "$pkgdir/etc/silitune.conf"
   install -D -m755 ./silitune.py "$pkgdir/usr/bin/silitune"
   install -d "$pkgdir/usr/share/applications" "$pkgdir/usr/lib/silitune" "$pkgdir/var/lib/silitune"
   install -D ./SiliTune.desktop.template "$pkgdir/usr/share/applications/SiliTune.desktop"

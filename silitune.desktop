@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=SiliTune
+Categories=System;
+Exec=gksudo silitune
+Icon=/usr/lib/silitune/icon.png
+Terminal=false
+StartupWMClass=silitune
