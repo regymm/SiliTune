@@ -8,9 +8,9 @@ You want your laptop CPU works like a beast when your program is being run, and 
 
 With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
 
-A screenshot(A stable -125mV undervolting is quite lucky, not every CPU can get this far): 
+A combined graph showing nearly all function:
 
-![](./screenshot.png)
+![](./silitune_poster.png)
 
 Functions to be developed:
 
@@ -25,112 +25,68 @@ Functions to be developed:
 - [x] Multiple tabs for more functions
 - [x] Data acquisition & plotting
 - [x] Benchmark
-- [x] Automatic full benchmark
+- [ ] Automatic full benchmark(see dev branch)
 - [ ] Auto tune(find max Q point)
-- [ ] Package in AUR
-
-## A Partial Usage Guide
-
-#### Dependencies
-
-**Required**
-
-Python PyQt5
-
-Python matplotlib
-
-TLP
-
-`intel-undervolt`, available in AUR
-
-`gksu` from gksudo package
-
-**Recommended**
-
-VLC media player for benchmark uses
-
-`7z` for benchmark uses
+- [x] Package in AUR
 
 #### Installation
 
-First, check `install.sh` to see whether there are something wrong, or some files you don't want to override. 
+**ArchLinux based distros**
 
-Then run `install.sh` as root to install. 
+`yay -S silitune`
 
-The program will be installed to `/usr/local/silitune`.
+**Ubuntu and others**
 
-Configure file and desktop launcher will be installed. Old configure file will be untouched. 
+Just an example command list. Adjust them to satisfy your own condition. 
 
-#### Configure files
+`apt install python3-pyqt5 python3-matplotlib tlp gksudo p7zip-full build-essentials git`
 
-`/etc/silitune/sili.conf` is the place of the main configure file used by silitune, an example can be found at `./sili.conf.example`. The meanings of entries in the file is obvious. The program, instead of you, will deal with it. In most cases you don't need to edit it by yourself. 
+`git clone https://github.com/kitsunyan/intel-undervolt.git && `
 
-One exception: if you want to use the undervolting functions, then you should set `uv enabled = 1` in the `global` section in the configure file manually. 
+`cd intel-undervolt && ./configure && make && sudo make install`
 
-`/etc/intel-undervolt.conf` and `/etc/intel-undervolt.conf.bak` is changed by the program for undervolting configurations. So backup the file to a name different from these two is recommended. 
+`git clone https://github.com/ustcpetergu/silitune`
 
-#### Launcher
+`cd silitune && sudo ./install.sh`
 
-Be careful if you want to let the program auto launch in you desktop environment's settings, I encountered some problems when doing so. 
+`sudo ./uninstall.sh` to uninstall. 
 
-####  Main Function
+#### Post-installation
 
-The GUI is quite simple to use. 
+Set `uv enabled = 1` in `/etc/silitune.conf` manually to enable undervolting. 
 
-First, click Help and read it. 
+Uncomment the `power package 50/40 45/50`  line in `/etc/intel-undervolt.conf` to make TDP configure working. 
+
+`/etc/intel-undervolt.conf` and `/etc/intel-undervolt.conf.bak` are changed by the program for undervolting and TDP configurations. So backup the file to a name different from these two is recommended. 
+
+####  Misc. 
+
+A launcher will be installed to `/usr/share/applications`, but whether it works depends on your DE. 
 
 If you don't know the meanings of buttons, like "What's turbo boost?", or "Whether should I change system agent", then you'd better look up before tweaking these options. 
 
-**Options, and Save**
-
 Changed options will have effects immediately(except undervolting settings), but only after pressing `Save config` will those changes written into configure file, or they'll be discarded after quit. 
 
-Power and Battery profiles are not saved simultaneously, so pressing the save button when on power profile will only save your power profile, and vise versa. Considering the mechanism of the program, it's nature to behave like this. 
+Power and Battery profiles are not saved simultaneously, so pressing the save button when on power profile will only save your power profile, and vise versa. 
 
 As an incorrect undervolting may cause system failure, only after pressing the Apply Undervolt button will the undervolting settings be truly written into system. Check twice before press it. Due to my experience, any operation related to undervolting change(like switch profile) may cause system crash, even change from a big value to a small one. 
 
-**Real Real Values**
-
 If you entered an illegal value, or some buttons or options failed to work, the value on the panel will be the (bad) value your assigned, but actually the system is not modified. Press the read real values button will read the (good) values from system, then set them onto the panel. 
 
-**Switch Profile**
+The power and battery profiles are switched **automatically** when you connect/disconnect the power cable, if your battery is successfully detected. And you can also switch by hand. 
 
-The power and battery profiles are switched **automatically** when you connect/disconnect the power cable. And you can also switch by hand. 
-
-**System Tray**
-
-You can always right click the icon in system tray to hide or show the program, and switch profiles quickly. 
-
-#### Monitor & Data Acquisition
+You can always right click the icon in system tray to hide or show the program, switch profiles, and re-apply undervolt quickly. On my laptop undervolt will be reset to 0 after waking up from suspension, so the re-apply is useful. 
 
 Enabled monitor to view CPU, battery and fan information real-time. Monitor will not update if the app is hide to save power. 
 
-Press `Start` and monitor data will be recorded in memory(old ones discarded), press `End` to end. Now the collected data is in RAM: press `Save` will save a plain text dump to (default) `/usr/local/silitune/data`. Press `Plot` to plot these the data in memory via matplotlib, no matter saved or not. 
+Press `Start` and monitor data will be recorded in memory(old ones discarded), press `End` to end. Now the collected data is in RAM: press `Save` will save a plain text dump to (default) `/var/lib/silitune`. Press `Plot` to plot these the data in memory via matplotlib, no matter saved or not. 
 
-#### Benchmark
-
-Press `Start Bench` to start a 7zip benchmark, if `Start Again When Finished` is checked, benchmarks will be run one by one, more like a system stress test. Uncheck this if you want benchmark to end. 
-
-`Start Full Evaluation` will do  a series of power consumption and performance tests, including 7z test and VLC video playback test. Place a video named `video.mp4` in your Downloads folder aka `/home/$USER/Downloads/video.mp4` to test. Video longer than 1 minute is recommended. 
-
-Follow the instructions to unplug or plug power cable. 
-
-Please do not touch other options during the benchmark and restart the app when it finished -- this function is currently not very stable! 
-
-After benchmark monitor results and timing details will be saved in `/usr/local/silitune/data`, named like `silitune-######.#.dat` and `silitune-######.#-timing.dat`, in plaintext.  
-
-## Plotter
-
-`plotter.py` can be used to plot saved data and benchmark data. 
-
-Example: `./plotter.py /usr/local/silitune/data/silitune-######.#.dat`
-
-Timing information in timing files will be added if exist. 
-
-## Parameters
+`plotter.py` can be used to plot saved data. Example: `./plotter.py /usr/local/silitune/data/silitune-######.#.dat`
 
 Most of the parameters and command names are clearly visible at the top of `silitune.py` -- tune them if you need. 
 
 ## Disclaimer
 
-As is shown in the Arch Wiki, undervolting may cause "Instant hardware damage". I'm not responsible for any kind of damage or misbehavior(both you and your computer) caused by this program. 
+As is shown in the Arch Wiki, misconfiguring CPU voltage may cause "Instant hardware damage". 
+
+Though this has been tested on 6+ laptops and I use it every day without noticing any permanent damage, **I'm not responsible for any kind of damage or misbehavior(both you and your computer) caused by this program**. 
