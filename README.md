@@ -4,6 +4,8 @@
 
 **WARNING: Use as your own risk! See disclaimer for details!**
 
+*This project has won the 3rd prize in the [13th National University Student Social and Science Contest on Energy Saving & Emission Reduction](http://www.jienengjianpai.org/Article.asp?ID=219)（第十三届全国大学生节能减排社会实践与科技竞赛，项目：Linux 节电大师）. Teammates: me, [libreliu](https://github.com/libreliu), [ZhaoZuohong](https://github.com/ZhaoZuohong), supervised by [Peng Hu](https://tsee.ustc.edu.cn/2010/0613/c3266a27763/pagem.psp)*
+
 You want your laptop CPU works like a beast when your program is being run, and consume as less power as possible when you are on battery just browsing the net. You don't want to open a terminal and type a long command just to disable turbo boost. You don't want to open a terminal and wait for powertop just to see the power consumption.
 
 With this program, you can control your CPU with just a click of mouse, automatically switch management profiles when power cable disconnected/connected, and monitor frequently-used parameters easily. 
